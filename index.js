@@ -1,21 +1,26 @@
 const WebSocket = require('ws');
+const http = require('http');
 
-const wss8080 = new WebSocket.Server({ 
-    port: 8080, 
-    host: '0.0.0.0' 
+// This allows the cloud host to tell the server which port to use
+const port = process.env.PORT || 3000;
+
+// Create a basic HTTP server (Required by most free hosts)
+const server = http.createServer((req, res) => {
+    res.writeHead(200);
+    res.end("Roblox Bridge is Online!");
 });
 
-wss8080.on('connection', (ws) => {
-    console.log("--- New Player Connected ---");
+const wss = new WebSocket.Server({ server });
+
+wss.on('connection', (ws) => {
+    console.log("--- New Player Connected to Cloud Bridge ---");
     
     ws.on('message', (data) => {
         const message = data.toString();
-        
-        // THIS LINE IS KEY: It prints the chat to your Laptop 2 screen
-        console.log("CHAT RECEIVED: " + message);
+        console.log("Chat Received: " + message);
 
-        // This sends the message back to everyone in Roblox
-        wss8080.clients.forEach(client => {
+        // Relay to everyone
+        wss.clients.forEach(client => {
             if (client.readyState === WebSocket.OPEN) {
                 client.send(message);
             }
@@ -27,4 +32,6 @@ wss8080.on('connection', (ws) => {
     });
 });
 
-console.log("Bridge-server is LIVE on port 8080");
+server.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+});
