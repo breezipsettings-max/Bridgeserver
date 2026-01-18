@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ROBLOX BRIDGE TERMINAL</title>
+    <style>
+        body { background: #121212; color: #00ff00; font-family: 'Courier New', monospace; margin: 20px; }
+        #terminal { border: 2px solid #333; height: 400px; overflow-y: scroll; padding: 10px; background: #000; margin-bottom: 10px; }
+        #sidebar { float: right; width: 200px; border-left: 1px solid #333; padding-left: 15px; height: 400px; }
+        .system { color: #888; font-style: italic; }
+        .join { color: #00ff00; font-weight: bold; }
+        .message { margin-bottom: 5px; border-bottom: 1px solid #1a1a1a; padding-bottom: 2px; }
+        input { background: #000; border: 1px solid #00ff00; color: #00ff00; width: 70%; padding: 10px; }
+        button { background: #00ff00; color: #000; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold; }
+        #status { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: red; margin-right: 5px; }
+    </style>
+</head>
+<body>
+    <h1><div id="status"></div> BRIDGE TERMINAL v1.0</h1>
+    <div id="sidebar">
+        <h3>ACTIVE PLAYERS</h3>
+        <ul id="player-list"></ul>
+    </div>
+    <div id="terminal">
+        <div class="system">System: Waiting for bridge...</div>
+    </div>
+    <input type="text" id="chat-input" placeholder="Type a message to Roblox...">
+    <button onclick="sendMessage()">SEND</button>
+
+    <script>
+        const terminal = document.getElementById('terminal');
+        const playerList = document.getElementById('player-list');
+        const statusDot = document.getElementById('status');
+        const socket = new WebSocket('ws://127.0.0.1:8080');
+
+        socket.onopen = () => {
+            statusDot.style.background = '#00ff00';
+            logMessage('System: Connection Established', 'system');
+        };
+
+        socket.onmessage = (event) => {
+            const data = event.data;
+            if (data.startsWith('{')) {
+                const packet = JSON.parse(data);
+                if (packet.type === "playerList") {
+                    playerList.innerHTML = '';
+                    packet.players.forEach(p => {
+                        const li = document.createElement('li');
+                        li.textContent = p;
+                        playerList.appendChild(li);
+                    });
+                    return;
+                }
+            }
+            logMessage(data, (data.includes('[Connected]') || data.includes('[Disconnected]')) ? 'join' : '');
+        };
+
+        socket.onclose = () => {
+            statusDot.style.background = 'red';
+            logMessage('System: Connection lost. Retrying...', 'system');
+        };
+
+        function logMessage(text, className) {
+            const div = document.createElement('div');
+            div.className = 'message ' + className;
+            div.textContent = text;
+            terminal.appendChild(div);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chat-input');
+            if (input.value) {
+                socket.send("WEB_ADMIN: " + input.value); 
+                input.value = '';
+            }
+        }
+    </script>
+</body>
+</html>
