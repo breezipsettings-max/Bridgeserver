@@ -1,37 +1,34 @@
-const WebSocket = require('ws');
-const http = require('http');
+export default {
+  async fetch(request, env) {
+    // Check if the request is trying to open a WebSocket
+    const upgradeHeader = request.headers.get('Upgrade');
+    if (!upgradeHeader || upgradeHeader !== 'websocket') {
+      return new Response('Roblox Bridge is Online! (Connect via WSS)', { status: 200 });
+    }
 
-// This allows the cloud host to tell the server which port to use
-const port = process.env.PORT || 3000;
+    // Create a WebSocket pair: one for the client, one for the server
+    const [client, server] = Object.values(new WebSocketPair());
 
-// Create a basic HTTP server (Required by most free hosts)
-const server = http.createServer((req, res) => {
-    res.writeHead(200);
-    res.end("Roblox Bridge is Online!");
-});
+    // Accept the connection on the server side
+    server.accept();
 
-const wss = new WebSocket.Server({ server });
+    server.addEventListener('message', (event) => {
+      const message = event.data;
+      console.log("Chat Received: " + message);
 
-wss.on('connection', (ws) => {
-    console.log("--- New Player Connected to Cloud Bridge ---");
-    
-    ws.on('message', (data) => {
-        const message = data.toString();
-        console.log("Chat Received: " + message);
-
-        // Relay to everyone
-        wss.clients.forEach(client => {
-            if (client.readyState === WebSocket.OPEN) {
-                client.send(message);
-            }
-        });
+      // In a standard Worker, messages are sent back to the single connecting client.
+      // To relay to EVERYONE (like a real chat), you must use Durable Objects.
+      server.send(message); 
     });
 
-    ws.on('close', () => {
-        console.log("--- Player Disconnected ---");
+    server.addEventListener('close', () => {
+      console.log("--- Player Disconnected ---");
     });
-});
 
-server.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
-});
+    // Return the client side of the pair to the Roblox script
+    return new Response(null, {
+      status: 101,
+      webSocket: client,
+    });
+  },
+};
