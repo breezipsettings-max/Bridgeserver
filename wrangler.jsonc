@@ -1,5 +1,5 @@
 {
-  "name": "bridgeserver-1",
+  "name": "bridgeserver",
   "compatibility_date": "2026-01-19",
   "main": "index.js" 
 }
