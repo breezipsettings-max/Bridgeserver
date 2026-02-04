@@ -16,22 +16,20 @@
     </style>
 </head>
 <body>
-    <h1><div id="status"></div> BRIDGE TERMINAL v1.0</h1>
-    <div id="sidebar">
-        <h3>ACTIVE PLAYERS</h3>
-        <ul id="player-list"></ul>
-    </div>
-    <div id="terminal">
-        <div class="system">System: Waiting for bridge...</div>
-    </div>
+    <h1><div id="status"></div> BRIDGE TERMINAL</h1>
+
+    <div id="terminal" class="system">System: Waiting for bridge...</div>
     <input type="text" id="chat-input" placeholder="Type a message to Roblox...">
     <button onclick="sendMessage()">SEND</button>
 
     <script>
         const terminal = document.getElementById('terminal');
-        const playerList = document.getElementById('player-list');
         const statusDot = document.getElementById('status');
-        const socket = new WebSocket('ws://127.0.0.1:8080');
+
+        // Replace this with your Cloudflare Worker URL (WSS!)
+        const WORKER_URL = "wss://bridgeserver-1.breezipsettings.workers.dev";
+
+        const socket = new WebSocket(WORKER_URL);
 
         socket.onopen = () => {
             statusDot.style.background = '#00ff00';
@@ -40,24 +38,14 @@
 
         socket.onmessage = (event) => {
             const data = event.data;
-            if (data.startsWith('{')) {
-                const packet = JSON.parse(data);
-                if (packet.type === "playerList") {
-                    playerList.innerHTML = '';
-                    packet.players.forEach(p => {
-                        const li = document.createElement('li');
-                        li.textContent = p;
-                        playerList.appendChild(li);
-                    });
-                    return;
-                }
-            }
             logMessage(data, (data.includes('[Connected]') || data.includes('[Disconnected]')) ? 'join' : '');
         };
 
         socket.onclose = () => {
             statusDot.style.background = 'red';
             logMessage('System: Connection lost. Retrying...', 'system');
+            // Optionally reconnect automatically
+            setTimeout(() => location.reload(), 3000);
         };
 
         function logMessage(text, className) {
@@ -71,7 +59,7 @@
         function sendMessage() {
             const input = document.getElementById('chat-input');
             if (input.value) {
-                socket.send("WEB_ADMIN: " + input.value); 
+                socket.send("ADMIN: " + input.value);
                 input.value = '';
             }
         }
