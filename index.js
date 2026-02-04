@@ -1,34 +1,48 @@
 export default {
   async fetch(request, env) {
-    // Check if the request is trying to open a WebSocket
-    const upgradeHeader = request.headers.get('Upgrade');
-    if (!upgradeHeader || upgradeHeader !== 'websocket') {
-      return new Response('Roblox Bridge is Online! (Connect via WSS)', { status: 200 });
+    const upgrade = request.headers.get("Upgrade");
+
+    if (upgrade !== "websocket") {
+      return new Response(
+        "Roblox Bridge is Online! (Connect via WSS)",
+        { status: 200 }
+      );
     }
 
-    // Create a WebSocket pair: one for the client, one for the server
-    const [client, server] = Object.values(new WebSocketPair());
+    const id = env.CHAT_ROOM.idFromName("global-chat");
+    const room = env.CHAT_ROOM.get(id);
 
-    // Accept the connection on the server side
+    return room.fetch(request);
+  }
+};
+
+export class ChatRoom {
+  constructor(state) {
+    this.state = state;
+    this.clients = new Set();
+  }
+
+  async fetch(request) {
+    const [client, server] = Object.values(new WebSocketPair());
     server.accept();
 
-    server.addEventListener('message', (event) => {
-      const message = event.data;
-      console.log("Chat Received: " + message);
+    this.clients.add(server);
 
-      // In a standard Worker, messages are sent back to the single connecting client.
-      // To relay to EVERYONE (like a real chat), you must use Durable Objects.
-      server.send(message); 
+    server.addEventListener("message", (event) => {
+      for (const ws of this.clients) {
+        if (ws.readyState === 1) {
+          ws.send(event.data);
+        }
+      }
     });
 
-    server.addEventListener('close', () => {
-      console.log("--- Player Disconnected ---");
+    server.addEventListener("close", () => {
+      this.clients.delete(server);
     });
 
-    // Return the client side of the pair to the Roblox script
     return new Response(null, {
       status: 101,
-      webSocket: client,
+      webSocket: client
     });
-  },
-};
+  }
+}
