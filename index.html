@@ -6,7 +6,6 @@
     <style>
         body { background: #121212; color: #00ff00; font-family: 'Courier New', monospace; margin: 20px; }
         #terminal { border: 2px solid #333; height: 400px; overflow-y: scroll; padding: 10px; background: #000; margin-bottom: 10px; }
-        #sidebar { float: right; width: 200px; border-left: 1px solid #333; padding-left: 15px; height: 400px; }
         .system { color: #888; font-style: italic; }
         .join { color: #00ff00; font-weight: bold; }
         .message { margin-bottom: 5px; border-bottom: 1px solid #1a1a1a; padding-bottom: 2px; }
@@ -26,7 +25,7 @@
         const terminal = document.getElementById('terminal');
         const statusDot = document.getElementById('status');
 
-        // Replace this with your Cloudflare Worker URL (WSS!)
+        // Replace this with your deployed Cloudflare Worker URL
         const WORKER_URL = "wss://bridgeserver-1.breezipsettings.workers.dev";
 
         const socket = new WebSocket(WORKER_URL);
@@ -44,7 +43,6 @@
         socket.onclose = () => {
             statusDot.style.background = 'red';
             logMessage('System: Connection lost. Retrying...', 'system');
-            // Optionally reconnect automatically
             setTimeout(() => location.reload(), 3000);
         };
 
