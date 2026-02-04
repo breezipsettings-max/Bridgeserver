@@ -1,5 +1,12 @@
-{
-  "name": "",
-  "compatibility_date": "2026-01-19",
-  "main": "index.js" 
-}
+name = "CHAT ROBLOX"
+main = "index.js"
+compatibility_date = "2026-04-02"
+
+[durable_objects]
+bindings = [
+  { name = "Chat_KV", class_name = "Chat_KV" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["Chat_KV"]
