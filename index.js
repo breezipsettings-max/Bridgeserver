@@ -11,18 +11,39 @@ app.use(express.json());
 // Serve static files (like your index.html) from the root directory
 app.use(express.static(__dirname));
 
-// Single account Cloudflare Workers AI call
-async function callCloudflare(prompt) {
-  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-  const apiToken = process.env.CLOUDFLARE_API_TOKEN;
-  const model = '@cf/meta/llama-3.2-1b-instruct';
+// Load all configured Cloudflare accounts dynamically from environment variables (1 to 10)
+function getAccounts() {
+  const accounts = [];
+  for (let i = 1; i <= 10; i++) {
+    const id = process.env[`CF_ACCOUNT_ID_${i}`];
+    const token = process.env[`CF_TOKEN_${i}`];
+    if (id && token) {
+      accounts.push({ id, token });
+    }
+  }
+  return accounts;
+}
 
-  const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`;
+let currentAccountIndex = 0;
+
+// Multi-account rotating Cloudflare Workers AI call
+async function callCloudflare(prompt) {
+  const accounts = getAccounts();
+  if (accounts.length === 0) {
+    throw new Error('No Cloudflare accounts configured in environment variables.');
+  }
+
+  // Select the current account and rotate index for the next request
+  const account = accounts[currentAccountIndex];
+  currentAccountIndex = (currentAccountIndex + 1) % accounts.length;
+
+  const model = '@cf/meta/llama-3.2-1b-instruct';
+  const url = `https://api.cloudflare.com/client/v4/accounts/${account.id}/ai/run/${model}`;
 
   const response = await fetch(url, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${apiToken}`,
+      'Authorization': `Bearer ${account.token}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
