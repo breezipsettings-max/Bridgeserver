@@ -2,30 +2,75 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>RENDER AI BRIDGE TERMINAL</title>
+    <title>CLUSTER SYNC ENGINE AI TERMINAL</title>
     <style>
         body { background: #121212; color: #00ff00; font-family: 'Courier New', monospace; margin: 20px; }
-        #terminal { border: 2px solid #333; height: 400px; overflow-y: scroll; padding: 10px; background: #000; margin-bottom: 10px; }
+        .header-box { border: 1px dashed #333; padding: 10px; margin-bottom: 15px; background: #0a0a0a; font-size: 11px; color: #888; }
+        .header-box span { color: #00ffff; }
+        #terminal { border: 2px solid #333; height: 350px; overflow-y: scroll; padding: 10px; background: #000; margin-bottom: 10px; }
         .system { color: #888; font-style: italic; }
         .user-msg { color: #00ffff; }
         .ai-msg { color: #00ff00; font-weight: bold; }
         .message { margin-bottom: 8px; border-bottom: 1px solid #1a1a1a; padding-bottom: 4px; }
         input { background: #000; border: 1px solid #00ff00; color: #00ff00; width: 70%; padding: 10px; }
         button { background: #00ff00; color: #000; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold; }
-        #status { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #00ff00; margin-right: 5px; }
+        #status { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #ff0000; margin-right: 5px; }
+        #status.online { background: #00ff00; }
     </style>
 </head>
 <body>
-    <h1><div id="status"></div> RENDER AI BRIDGE TERMINAL</h1>
+    <h1><div id="status"></div> CLUSTER SYNC ENGINE AI</h1>
+    
+    <div class="header-box">
+        <strong>Architecture Active:</strong> <span>State Synchronization</span> active | 
+        <span>Vector & Embedding Distribution</span> synced | 
+        <span>Orchestration Bypasses</span> operational (WebSocket/REST Hybrid)
+    </div>
 
-    <div id="terminal" class="system">System: Terminal ready. Type a prompt below...</div>
-    <input type="text" id="chat-input" placeholder="Type a prompt for Llama 3.2..." onkeypress="handleKey(event)">
-    <button onclick="sendMessage()">SEND</button>
+    <div id="terminal" class="system">System: Initializing Cluster Sync terminal stream...</div>
+    <input type="text" id="chat-input" placeholder="Type a prompt for multi-account fallback..." onkeypress="handleKey(event)">
+    <button onclick="sendMessage()">TRANSMIT</button>
 
     <script>
         const terminal = document.getElementById('terminal');
+        const statusIndicator = document.getElementById('status');
+        
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}`;
+        let socket;
 
-        logMessage('System: Connected to local frontend view.', 'system');
+        function connectWebSocket() {
+            logMessage('System: Establishing secure WebSocket tunnel...', 'system');
+            socket = new WebSocket(wsUrl);
+
+            socket.onopen = () => {
+                logMessage('System: Cluster node link established successfully.', 'system');
+                statusIndicator.classList.add('online');
+            };
+
+            socket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.result) {
+                        logMessage("AI NODE: " + data.result, 'ai-msg');
+                    } else if (data.error) {
+                        logMessage("Cluster Error: " + data.error, 'system');
+                    }
+                } catch (e) {
+                    logMessage("System: Raw sync stream -> " + event.data, 'system');
+                }
+            };
+
+            socket.onerror = () => {
+                logMessage('System Warning: WebSocket tunnel disruption detected.', 'system');
+            };
+
+            socket.onclose = () => {
+                logMessage('System: Connection dropped. Reconnecting cluster sync in 5s...', 'system');
+                statusIndicator.classList.remove('online');
+                setTimeout(connectWebSocket, 5000);
+            };
+        }
 
         function logMessage(text, className) {
             const div = document.createElement('div');
@@ -41,7 +86,7 @@
             }
         }
 
-        async function sendMessage() {
+        function sendMessage() {
             const input = document.getElementById('chat-input');
             const promptText = input.value.trim();
             
@@ -50,25 +95,30 @@
             logMessage("ADMIN: " + promptText, 'user-msg');
             input.value = '';
 
-            try {
-                // Points to your Express backend running on Render (or localhost:3000 during testing)
-                const response = await fetch('/api/ask', {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({ prompt: promptText }));
+            } else {
+                // Fallback to REST API route if WS is down
+                fetch('/api/ask', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ prompt: promptText })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        logMessage("AI NODE (REST): " + data.result, 'ai-msg');
+                    } else {
+                        logMessage("Cluster Error: " + (data.error || 'Unknown error'), 'system');
+                    }
+                })
+                .catch(() => {
+                    logMessage("System Error: Failed to reach backend cluster node.", 'system');
                 });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    logMessage("AI: " + data.result, 'ai-msg');
-                } else {
-                    logMessage("System Error: " + (data.error || 'Unknown error'), 'system');
-                }
-            } catch (err) {
-                logMessage("System Error: Failed to reach backend server.", 'system');
             }
         }
+
+        connectWebSocket();
     </script>
 </body>
 </html>
