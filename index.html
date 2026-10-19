@@ -2,49 +2,30 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>ROBLOX BRIDGE TERMINAL</title>
+    <title>RENDER AI BRIDGE TERMINAL</title>
     <style>
         body { background: #121212; color: #00ff00; font-family: 'Courier New', monospace; margin: 20px; }
         #terminal { border: 2px solid #333; height: 400px; overflow-y: scroll; padding: 10px; background: #000; margin-bottom: 10px; }
         .system { color: #888; font-style: italic; }
-        .join { color: #00ff00; font-weight: bold; }
-        .message { margin-bottom: 5px; border-bottom: 1px solid #1a1a1a; padding-bottom: 2px; }
+        .user-msg { color: #00ffff; }
+        .ai-msg { color: #00ff00; font-weight: bold; }
+        .message { margin-bottom: 8px; border-bottom: 1px solid #1a1a1a; padding-bottom: 4px; }
         input { background: #000; border: 1px solid #00ff00; color: #00ff00; width: 70%; padding: 10px; }
         button { background: #00ff00; color: #000; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold; }
-        #status { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: red; margin-right: 5px; }
+        #status { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #00ff00; margin-right: 5px; }
     </style>
 </head>
 <body>
-    <h1><div id="status"></div> BRIDGE TERMINAL</h1>
+    <h1><div id="status"></div> RENDER AI BRIDGE TERMINAL</h1>
 
-    <div id="terminal" class="system">System: Waiting for bridge...</div>
-    <input type="text" id="chat-input" placeholder="Type a message to Roblox...">
+    <div id="terminal" class="system">System: Terminal ready. Type a prompt below...</div>
+    <input type="text" id="chat-input" placeholder="Type a prompt for Llama 3.2..." onkeypress="handleKey(event)">
     <button onclick="sendMessage()">SEND</button>
 
     <script>
         const terminal = document.getElementById('terminal');
-        const statusDot = document.getElementById('status');
 
-        // Replace this with your deployed Cloudflare Worker URL
-        const WORKER_URL = "wss://bridgeserver-1.breezipsettings.workers.dev";
-
-        const socket = new WebSocket(WORKER_URL);
-
-        socket.onopen = () => {
-            statusDot.style.background = '#00ff00';
-            logMessage('System: Connection Established', 'system');
-        };
-
-        socket.onmessage = (event) => {
-            const data = event.data;
-            logMessage(data, (data.includes('[Connected]') || data.includes('[Disconnected]')) ? 'join' : '');
-        };
-
-        socket.onclose = () => {
-            statusDot.style.background = 'red';
-            logMessage('System: Connection lost. Retrying...', 'system');
-            setTimeout(() => location.reload(), 3000);
-        };
+        logMessage('System: Connected to local frontend view.', 'system');
 
         function logMessage(text, className) {
             const div = document.createElement('div');
@@ -54,11 +35,38 @@
             terminal.scrollTop = terminal.scrollHeight;
         }
 
-        function sendMessage() {
+        function handleKey(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        async function sendMessage() {
             const input = document.getElementById('chat-input');
-            if (input.value) {
-                socket.send("ADMIN: " + input.value);
-                input.value = '';
+            const promptText = input.value.trim();
+            
+            if (!promptText) return;
+
+            logMessage("ADMIN: " + promptText, 'user-msg');
+            input.value = '';
+
+            try {
+                // Points to your Express backend running on Render (or localhost:3000 during testing)
+                const response = await fetch('/api/ask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: promptText })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    logMessage("AI: " + data.result, 'ai-msg');
+                } else {
+                    logMessage("System Error: " + (data.error || 'Unknown error'), 'system');
+                }
+            } catch (err) {
+                logMessage("System Error: Failed to reach backend server.", 'system');
             }
         }
     </script>
