@@ -1,60 +1,54 @@
-// index.js
+import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-// Main Worker: forwards all WebSocket connections to the Durable Object
-export default {
-  async fetch(request, env) {
-    const upgrade = request.headers.get("Upgrade");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-    // If not WebSocket, return simple online message
-    if (upgrade !== "websocket") {
-      return new Response(
-        "Roblox Bridge is Online! (Connect via WSS)",
-        { status: 200 }
-      );
-    }
+const app = express();
+app.use(express.json());
 
-    // Durable Object binding: Chat_KV
-    const id = env.Chat_KV.idFromName("global-chat");
-    const room = env.Chat_KV.get(id);
+// Serve static files (like your index.html) from the root directory
+app.use(express.static(__dirname));
 
-    // Forward the request to the Durable Object
-    return room.fetch(request);
-  }
-};
+// Single account Cloudflare Workers AI call
+async function callCloudflare(prompt) {
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+  const model = '@cf/meta/llama-3.2-1b-instruct';
 
-// Durable Object class: manages all WebSocket clients
-export class Chat_KV {
-  constructor(state) {
-    this.state = state;
-    this.clients = new Set(); // stores all connected sockets
-  }
+  const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`;
 
-  async fetch(request) {
-    // Create a WebSocket pair
-    const [client, server] = Object.values(new WebSocketPair());
-    server.accept();
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 300,
+    }),
+  });
 
-    // Add new client
-    this.clients.add(server);
+  const data = await response.json();
+  if (!data.success) throw new Error(JSON.stringify(data.errors));
 
-    // Broadcast any incoming messages to all clients
-    server.addEventListener("message", (event) => {
-      for (const ws of this.clients) {
-        if (ws.readyState === 1) {
-          ws.send(event.data);
-        }
-      }
-    });
-
-    // Remove disconnected clients
-    server.addEventListener("close", () => {
-      this.clients.delete(server);
-    });
-
-    // Return WebSocket upgrade response
-    return new Response(null, {
-      status: 101,
-      webSocket: client
-    });
-  }
+  return data.result.response;
 }
+
+// AI endpoint
+app.post('/api/ask', async (req, res) => {
+  const { prompt } = req.body;
+  if (!prompt) return res.status(400).json({ error: 'Prompt is required.' });
+
+  try {
+    const result = await callCloudflare(prompt);
+    res.json({ success: true, result });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
