@@ -4,18 +4,54 @@
     <meta charset="UTF-8">
     <title>CLUSTER SYNC ENGINE AI TERMINAL</title>
     <style>
-        body { background: #121212; color: #00ff00; font-family: 'Courier New', monospace; margin: 20px; }
-        .header-box { border: 1px dashed #333; padding: 10px; margin-bottom: 15px; background: #0a0a0a; font-size: 11px; color: #888; }
+        body { 
+            background: #080808; 
+            color: #00ff66; 
+            font-family: 'Courier New', Courier, monospace; 
+            margin: 0; 
+            padding: 20px; 
+            display: flex; 
+            flex-direction: column; 
+            height: 92vh; 
+            box-sizing: border-box; 
+        }
+        h1 { font-size: 1.4rem; letter-spacing: 2px; text-shadow: 0 0 8px rgba(0,255,102,0.3); margin-top: 0; display: flex; align-items: center; }
+        .header-box { border: 1px dashed #222; padding: 8px 12px; margin-bottom: 12px; background: #0c0c0c; font-size: 11px; color: #777; border-radius: 4px; }
         .header-box span { color: #00ffff; }
-        #terminal { border: 2px solid #333; height: 350px; overflow-y: scroll; padding: 10px; background: #000; margin-bottom: 10px; }
-        .system { color: #888; font-style: italic; }
-        .user-msg { color: #00ffff; }
-        .ai-msg { color: #00ff00; font-weight: bold; }
-        .message { margin-bottom: 8px; border-bottom: 1px solid #1a1a1a; padding-bottom: 4px; }
-        input { background: #000; border: 1px solid #00ff00; color: #00ff00; width: 70%; padding: 10px; }
-        button { background: #00ff00; color: #000; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold; }
-        #status { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #ff0000; margin-right: 5px; }
-        #status.online { background: #00ff00; }
+        
+        #terminal { 
+            flex: 1; 
+            border: 1px solid #222; 
+            border-radius: 4px; 
+            overflow-y: scroll; 
+            padding: 15px; 
+            background: #020202; 
+            margin-bottom: 12px; 
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.8); 
+        }
+        .system { color: #666; font-style: italic; }
+        .user-msg { color: #00ffff; margin-bottom: 12px; }
+        .ai-msg { color: #00ff66; margin-bottom: 12px; line-height: 1.5; }
+        .message { margin-bottom: 12px; border-bottom: 1px solid #111; padding-bottom: 8px; }
+        
+        /* Markdown formatting styles */
+        .ai-msg strong { color: #ffffff; text-shadow: 0 0 5px rgba(255,255,255,0.4); }
+        
+        /* Code snippet & copy box wrapper */
+        .code-box { position: relative; background: #050505; border: 1px solid #333; border-radius: 4px; margin: 10px 0; padding: 12px; }
+        .code-box pre { margin: 0; color: #ff00ff; font-family: 'Courier New', monospace; overflow-x: auto; font-size: 0.9rem; }
+        .copy-btn { position: absolute; top: 6px; right: 6px; background: #111; color: #00ff66; border: 1px solid #00ff66; font-size: 10px; padding: 3px 8px; cursor: pointer; border-radius: 2px; font-family: 'Courier New', monospace; }
+        .copy-btn:hover { background: #00ff66; color: #000; }
+
+        .input-cluster { display: flex; gap: 10px; }
+        input { background: #020202; border: 1px solid #333; border-radius: 4px; color: #00ff66; flex: 1; padding: 12px; font-family: 'Courier New', monospace; font-size: 1rem; outline: none; transition: border-color 0.2s; }
+        input:focus { border-color: #00ff66; box-shadow: 0 0 8px rgba(0,255,102,0.2); }
+        
+        button.send-btn { background: #00ff66; color: #000; border: none; border-radius: 4px; padding: 0 25px; cursor: pointer; font-weight: bold; font-family: 'Courier New', monospace; letter-spacing: 1px; transition: opacity 0.2s; }
+        button.send-btn:hover { opacity: 0.85; }
+
+        #status { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #ff3333; margin-right: 8px; box-shadow: 0 0 8px #ff3333; }
+        #status.online { background: #00ff66; box-shadow: 0 0 8px #00ff66; }
     </style>
 </head>
 <body>
@@ -27,17 +63,30 @@
         <span>Orchestration Bypasses</span> operational (WebSocket/REST Hybrid)
     </div>
 
-    <div id="terminal" class="system">System: Initializing Cluster Sync terminal stream...</div>
-    <input type="text" id="chat-input" placeholder="Type a prompt for multi-account fallback..." onkeypress="handleKey(event)">
-    <button onclick="sendMessage()">TRANSMIT</button>
+    <div id="terminal" class="system">System: Initializing Cluster Sync terminal stream... (Press '/' anywhere to type)</div>
+    
+    <div class="input-cluster">
+        <input type="text" id="chat-input" placeholder="Type a prompt or code request..." onkeypress="handleKey(event)">
+        <button class="send-btn" onclick="sendMessage()">TRANSMIT</button>
+    </div>
 
     <script>
         const terminal = document.getElementById('terminal');
         const statusIndicator = document.getElementById('status');
+        const chatInput = document.getElementById('chat-input');
         
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}`;
         let socket;
+
+        // Auto-capture '/' key to focus input anywhere on the page
+        window.addEventListener('keydown', (e) => {
+            if (e.key === '/' && document.activeElement !== chatInput) {
+                e.preventDefault();
+                chatInput.focus();
+                chatInput.setSelectionRange(chatInput.value.length, chatInput.value.length);
+            }
+        });
 
         function connectWebSocket() {
             logMessage('System: Establishing secure WebSocket tunnel...', 'system');
@@ -52,7 +101,7 @@
                 try {
                     const data = JSON.parse(event.data);
                     if (data.result) {
-                        logMessage("AI NODE: " + data.result, 'ai-msg');
+                        renderFormattedMessage("AI NODE: " + data.result, 'ai-msg');
                     } else if (data.error) {
                         logMessage("Cluster Error: " + data.error, 'system');
                     }
@@ -80,6 +129,60 @@
             terminal.scrollTop = terminal.scrollHeight;
         }
 
+        // Advanced parser for code blocks, bold text, and copy boxes
+        function renderFormattedMessage(text, className) {
+            const div = document.createElement('div');
+            div.className = 'message ' + className;
+
+            // Split by code blocks ```
+            const parts = text.split(/(```[\s\S]*?```)/g);
+
+            parts.forEach(part => {
+                if (part.startsWith('```') && part.endsWith('```')) {
+                    const rawCode = part.slice(3, -3).replace(/^[a-z]+\n/, '');
+                    
+                    const box = document.createElement('div');
+                    box.className = 'code-box';
+
+                    const pre = document.createElement('pre');
+                    pre.textContent = rawCode;
+
+                    const btn = document.createElement('button');
+                    btn.className = 'copy-btn';
+                    btn.textContent = 'COPY';
+                    btn.onclick = () => {
+                        navigator.clipboard.writeText(rawCode);
+                        btn.textContent = 'COPIED!';
+                        setTimeout(() => btn.textContent = 'COPY', 2000);
+                    };
+
+                    box.appendChild(btn);
+                    box.appendChild(pre);
+                    div.appendChild(box);
+                } else {
+                    // Parse markdown bold ** text inside regular text segments
+                    const subContainer = document.createElement('div');
+                    const boldParts = part.split(/(\*\*[\s\S]*?\*\*)/g);
+                    
+                    boldParts.forEach(subPart => {
+                        if (subPart.startsWith('**') && subPart.endsWith('**')) {
+                            const strong = document.createElement('strong');
+                            strong.textContent = subPart.slice(2, -2);
+                            subContainer.appendChild(strong);
+                        } else {
+                            const span = document.createElement('span');
+                            span.textContent = subPart;
+                            subContainer.appendChild(span);
+                        }
+                    });
+                    div.appendChild(subContainer);
+                }
+            });
+
+            terminal.appendChild(div);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
         function handleKey(event) {
             if (event.key === 'Enter') {
                 sendMessage();
@@ -87,18 +190,15 @@
         }
 
         function sendMessage() {
-            const input = document.getElementById('chat-input');
-            const promptText = input.value.trim();
-            
+            const promptText = chatInput.value.trim();
             if (!promptText) return;
 
             logMessage("ADMIN: " + promptText, 'user-msg');
-            input.value = '';
+            chatInput.value = '';
 
             if (socket && socket.readyState === WebSocket.OPEN) {
                 socket.send(JSON.stringify({ prompt: promptText }));
             } else {
-                // Fallback to REST API route if WS is down
                 fetch('/api/ask', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -107,7 +207,7 @@
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
-                        logMessage("AI NODE (REST): " + data.result, 'ai-msg');
+                        renderFormattedMessage("AI NODE (REST): " + data.result, 'ai-msg');
                     } else {
                         logMessage("Cluster Error: " + (data.error || 'Unknown error'), 'system');
                     }
