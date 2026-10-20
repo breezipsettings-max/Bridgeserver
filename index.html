@@ -95,10 +95,18 @@
             color: var(--text-dim);
             border-radius: 6px;
             line-height: 1.6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .header-box span {
             color: var(--accent-cyan);
+        }
+
+        #cluster-state {
+            color: var(--accent-green);
+            font-weight: bold;
         }
 
         #terminal {
@@ -261,9 +269,11 @@
         </div>
         
         <div class="header-box">
-            <strong>Architecture Active:</strong> <span>State Synchronization</span> active | 
-            <span>Vector & Embedding Distribution</span> synced | 
-            <span>Orchestration Bypasses</span> operational (WebSocket/REST Hybrid)
+            <div>
+                <strong>Architecture Active:</strong> <span>State Synchronization</span> active | 
+                <span>Vector & Embedding Distribution</span> synced
+            </div>
+            <div id="cluster-state">CLUSTER: ACTIVE</div>
         </div>
 
         <div id="terminal" class="system">System: Initializing Cluster Sync terminal stream... (Press '/' to focus input)</div>
@@ -278,6 +288,7 @@
         const terminal = document.getElementById('terminal');
         const statusIndicator = document.getElementById('status');
         const chatInput = document.getElementById('chat-input');
+        const clusterState = document.getElementById('cluster-state');
         
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}`;
@@ -298,6 +309,7 @@
             socket.onopen = () => {
                 logMessage('System: Cluster node link established successfully.', 'system');
                 statusIndicator.classList.add('online');
+                clusterState.textContent = 'CLUSTER: ONLINE (1-10 ROTATION)';
             };
 
             socket.onmessage = (event) => {
@@ -305,6 +317,9 @@
                     const data = JSON.parse(event.data);
                     if (data.result) {
                         renderFormattedMessage(data.result, 'ai-msg');
+                    } else if (data.systemInfo) {
+                        logMessage("System Notice: " + data.systemInfo, 'system');
+                        clusterState.textContent = 'CLUSTER: IDLE (SAVING TOKENS)';
                     } else if (data.error) {
                         logMessage("Cluster Error: " + data.error, 'system');
                     }
@@ -320,6 +335,7 @@
             socket.onclose = () => {
                 logMessage('System: Connection dropped. Reconnecting cluster sync in 5s...', 'system');
                 statusIndicator.classList.remove('online');
+                clusterState.textContent = 'CLUSTER: RECONNECTING';
                 setTimeout(connectWebSocket, 5000);
             };
         }
@@ -370,6 +386,7 @@
             div.appendChild(contentDiv);
             terminal.appendChild(div);
             terminal.scrollTop = terminal.scrollHeight;
+            clusterState.textContent = 'CLUSTER: ACTIVE';
         }
 
         function handleKey(event) {
