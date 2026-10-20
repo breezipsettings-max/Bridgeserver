@@ -234,24 +234,30 @@
         .ai-msg { color: var(--text-bright); }
         .ai-msg strong { color: var(--accent-green); }
 
-        /* Loading Indicator with Transparent GIF Animation */
+        /* Pure CSS Glowing Loading Spinner Node */
         .loading-node {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             color: var(--accent-green);
             font-style: italic;
             font-size: 0.85rem;
             margin-bottom: 15px;
         }
 
-        .loading-node img {
-            width: 24px;
-            height: 24px;
-            vertical-align: middle;
-            background: transparent;
-            border: none;
-            outline: none;
+        .spinner-dot {
+            width: 14px;
+            height: 14px;
+            border: 2px solid var(--accent-green);
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin-glow 0.8s linear infinite;
+            box-shadow: 0 0 8px var(--accent-green);
+        }
+
+        @keyframes spin-glow {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         /* Code box formatting with COPY button */
@@ -783,7 +789,7 @@
             div.id = 'loading-node';
             div.className = 'loading-node';
             div.innerHTML = `
-                <img src="assets/chatbot.webp" alt="AI Loading">
+                <div class="spinner-dot"></div>
                 <span>[AI NODE PROCESSING STREAM...]</span>
             `;
             terminal.appendChild(div);
