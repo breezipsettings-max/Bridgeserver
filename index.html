@@ -37,6 +37,7 @@
         }
 
         .main-layout {
+            position: relative;
             width: 100%;
             max-width: 1200px;
             height: 92vh;
@@ -118,6 +119,7 @@
             flex-direction: column;
             padding: 20px;
             background: var(--panel-bg);
+            position: relative;
         }
 
         .header {
@@ -259,7 +261,32 @@
 
         .copy-btn:hover { background: var(--accent-green); color: #000; }
 
-        .input-cluster { display: flex; gap: 12px; }
+        /* Input Cluster & Plus Button */
+        .input-cluster { 
+            display: flex; 
+            gap: 10px; 
+            position: relative;
+        }
+
+        .plus-btn {
+            background: var(--terminal-bg);
+            color: var(--accent-green);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            width: 48px;
+            cursor: pointer;
+            font-size: 1.3rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .plus-btn:hover {
+            border-color: var(--accent-green);
+            background: rgba(0,255,102,0.05);
+        }
 
         input {
             background: var(--terminal-bg);
@@ -294,10 +321,70 @@
 
         button.send-btn:hover { opacity: 0.9; }
         button.send-btn:active { transform: scale(0.98); }
+
+        /* Drag & Drop Circle Overlay */
+        #drop-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(8, 10, 15, 0.85);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        #drop-overlay.active {
+            display: flex;
+        }
+
+        .drop-circle-box {
+            width: 320px;
+            height: 320px;
+            border: 3px dashed var(--accent-green);
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(0,255,102,0.2);
+            animation: pulse-ring 2s infinite;
+            background: rgba(4, 6, 9, 0.7);
+            color: var(--accent-green);
+            padding: 20px;
+        }
+
+        .drop-circle-box h3 {
+            margin: 0 0 8px 0;
+            font-size: 1rem;
+            letter-spacing: 1px;
+        }
+
+        .drop-circle-box p {
+            margin: 0;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(0, 255, 102, 0.3); }
+            70% { box-shadow: 0 0 0 25px rgba(0, 255, 102, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 255, 102, 0); }
+        }
+
+        /* Hidden File Input */
+        #file-selector {
+            display: none;
+        }
     </style>
 </head>
 <body>
-    <div class="main-layout">
+    <div class="main-layout" id="main-layout">
         <!-- Sidebar for Chat Tabs -->
         <div class="sidebar">
             <button class="new-chat-btn" onclick="createNewTab()">+ NEW CHAT</button>
@@ -307,7 +394,15 @@
         </div>
 
         <!-- Terminal Main Area -->
-        <div class="terminal-container">
+        <div class="terminal-container" id="terminal-container">
+            <!-- Drag and Drop Overlay Circle -->
+            <div id="drop-overlay">
+                <div class="drop-circle-box">
+                    <h3>[ DROP FILES HERE ]</h3>
+                    <p>Release to scan and transmit content to AI node</p>
+                </div>
+            </div>
+
             <div class="header">
                 <div class="title-group">
                     <div id="status"></div>
@@ -326,6 +421,8 @@
             <div id="terminal"></div>
             
             <div class="input-cluster">
+                <input type="file" id="file-selector" multiple onchange="handleFileSelect(event)">
+                <button class="plus-btn" onclick="document.getElementById('file-selector').click()" title="Upload Files">+</button>
                 <input type="text" id="chat-input" placeholder="Type a prompt or code request..." onkeypress="handleKey(event)">
                 <button class="send-btn" onclick="sendMessage()">TRANSMIT</button>
             </div>
@@ -338,6 +435,8 @@
         const chatInput = document.getElementById('chat-input');
         const clusterState = document.getElementById('cluster-state');
         const tabList = document.getElementById('tab-list');
+        const mainLayout = document.getElementById('main-layout');
+        const dropOverlay = document.getElementById('drop-overlay');
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}`;
@@ -346,7 +445,7 @@
         // Session Memory & Tabs State
         let tabs = [];
         let activeTabId = null;
-        const MAX_RENDERED_DOM_NODES = 25; // Virtual limit for rendering optimization
+        const MAX_RENDERED_DOM_NODES = 25;
 
         function createNewTab(title = 'New Session') {
             const tabId = 'tab_' + Date.now();
@@ -384,6 +483,93 @@
                 chatInput.focus();
             }
         });
+
+        // Drag and Drop File Handlers
+        let dragCounter = 0;
+
+        mainLayout.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            dragCounter++;
+            dropOverlay.classList.add('active');
+        });
+
+        mainLayout.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dragCounter--;
+            if (dragCounter === 0) {
+                dropOverlay.classList.remove('active');
+            }
+        });
+
+        mainLayout.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+
+        mainLayout.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dragCounter = 0;
+            dropOverlay.classList.remove('active');
+
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                processFiles(e.dataTransfer.files);
+            }
+        });
+
+        function handleFileSelect(event) {
+            if (event.target.files && event.target.files.length > 0) {
+                processFiles(event.target.files);
+                event.target.value = ''; // Reset file input
+            }
+        }
+
+        function processFiles(files) {
+            Array.from(files).forEach(file => {
+                const reader = new FileReader();
+                logSystemMessage(`System: Scanning file payload -> [${file.name}] (${(file.size/1024).toFixed(1)} KB)...`);
+                
+                reader.onload = (e) => {
+                    const content = e.target.result;
+                    // Auto-inject scanned file content as a prompt or formatted context
+                    const scanPrompt = `Analyze and scan the following attached file contents from [${file.name}]:\n\n\`\`\`\n${content}\n\`\`\``;
+                    
+                    const currentTab = getActiveTab();
+                    if (currentTab) {
+                        currentTab.messages.push({ type: 'user', content: `UPLOAD FILE: ${file.name}` });
+                        renderActiveTerminal();
+                        showLoadingIndicator();
+
+                        if (socket && socket.readyState === WebSocket.OPEN) {
+                            socket.send(JSON.stringify({ prompt: scanPrompt }));
+                        } else {
+                            fetch('/api/ask', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ prompt: scanPrompt })
+                            })
+                            .then(res => res.json())
+                            .then(data => {
+                                removeLoadingIndicator();
+                                if (data.success) {
+                                    renderFormattedMessage(data.result, 'ai-msg');
+                                } else {
+                                    logSystemMessage("Cluster Error: " + (data.error || 'Scan failed'));
+                                }
+                            })
+                            .catch(() => {
+                                removeLoadingIndicator();
+                                logSystemMessage("System Error: Failed to transmit scanned file stream.");
+                            });
+                        }
+                    }
+                };
+
+                if (file.type.startsWith('image/')) {
+                    reader.readAsDataURL(file);
+                } else {
+                    reader.readAsText(file);
+                }
+            });
+        }
 
         function connectWebSocket() {
             logSystemMessage('System: Establishing secure WebSocket tunnel...');
@@ -432,7 +618,7 @@
             div.id = 'loading-node';
             div.className = 'loading-node';
             div.innerHTML = `
-                <img src="assets/chatbot.gif" alt="AI Loading">
+                <img src="assets/chatbot.webp" alt="AI Loading">
                 <span>[AI NODE PROCESSING STREAM...]</span>
             `;
             terminal.appendChild(div);
@@ -457,7 +643,6 @@
             const currentTab = getActiveTab();
             if (!currentTab) return;
 
-            // DOM Pruning: Render last N messages to optimize performance
             const visibleMessages = currentTab.messages.slice(-MAX_RENDERED_DOM_NODES);
 
             visibleMessages.forEach(msg => {
@@ -485,7 +670,6 @@
                     contentDiv.style.width = '100%';
                     contentDiv.innerHTML = marked.parse(msg.content);
 
-                    // Attach code box copy listeners
                     const codeBlocks = contentDiv.querySelectorAll('pre');
                     codeBlocks.forEach(pre => {
                         const box = document.createElement('div');
@@ -534,7 +718,6 @@
             const currentTab = getActiveTab();
             if (!currentTab) return;
 
-            // Auto-update tab title based on first user prompt
             if (currentTab.messages.length <= 1 && currentTab.title === 'New Session') {
                 currentTab.title = promptText.slice(0, 20) + '...';
                 renderTabs();
