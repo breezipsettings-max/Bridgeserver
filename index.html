@@ -427,6 +427,68 @@
 
         .copy-btn:hover { background: var(--accent-green); color: #000; }
 
+        /* Input Wrapper & Staged File Preview Bar */
+        .input-wrapper {
+            display: flex;
+            flex-direction: column;
+            background: var(--terminal-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px;
+            gap: 8px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .input-wrapper:focus-within {
+            border-color: var(--accent-green);
+            box-shadow: 0 0 10px rgba(0,255,102,0.15);
+        }
+
+        /* Staged Files Preview Container */
+        #file-preview-container {
+            display: none;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 4px 6px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        #file-preview-container.active {
+            display: flex;
+        }
+
+        .file-chip {
+            background: rgba(0, 255, 102, 0.08);
+            border: 1px solid rgba(0, 255, 102, 0.3);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            color: var(--accent-green);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .file-chip span {
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .file-chip button {
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            font-size: 0.85rem;
+            padding: 0;
+        }
+
+        .file-chip button:hover {
+            color: #ff3333;
+        }
+
         /* Input Cluster & Plus Button */
         .input-cluster { 
             display: flex; 
@@ -435,13 +497,13 @@
         }
 
         .plus-btn {
-            background: var(--terminal-bg);
+            background: transparent;
             color: var(--accent-green);
             border: 1px solid var(--border-color);
             border-radius: 6px;
-            width: 48px;
+            width: 42px;
             cursor: pointer;
-            font-size: 1.3rem;
+            font-size: 1.2rem;
             font-weight: bold;
             display: flex;
             align-items: center;
@@ -455,21 +517,14 @@
         }
 
         input[type="text"] {
-            background: var(--terminal-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
+            background: transparent;
+            border: none;
             color: var(--accent-green);
             flex: 1;
-            padding: 14px 16px;
+            padding: 8px 10px;
             font-family: inherit;
             font-size: 0.95rem;
             outline: none;
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }
-
-        input[type="text"]:focus {
-            border-color: var(--accent-green);
-            box-shadow: 0 0 10px rgba(0,255,102,0.15);
         }
 
         button.send-btn {
@@ -477,7 +532,7 @@
             color: #000;
             border: none;
             border-radius: 6px;
-            padding: 0 28px;
+            padding: 0 24px;
             cursor: pointer;
             font-weight: bold;
             font-family: inherit;
@@ -619,7 +674,7 @@
             <div id="drop-overlay">
                 <div class="drop-circle-box">
                     <h3>[ DROP FILES HERE ]</h3>
-                    <p>Release to scan and transmit content to AI node</p>
+                    <p>Release to scan and queue files for AI transmission</p>
                 </div>
             </div>
 
@@ -644,11 +699,15 @@
 
             <div id="terminal"></div>
             
-            <div class="input-cluster">
-                <input type="file" id="file-selector" multiple onchange="handleFileSelect(event)">
-                <button class="plus-btn" onclick="document.getElementById('file-selector').click()" title="Upload Files">+</button>
-                <input type="text" id="chat-input" placeholder="Type a prompt or code request..." onkeypress="handleKey(event)">
-                <button class="send-btn" onclick="sendMessage()">TRANSMIT</button>
+            <!-- Input Wrapper with Staged File Preview Bar -->
+            <div class="input-wrapper">
+                <div id="file-preview-container"></div>
+                <div class="input-cluster">
+                    <input type="file" id="file-selector" multiple onchange="handleFileSelect(event)">
+                    <button class="plus-btn" onclick="document.getElementById('file-selector').click()" title="Upload Files">+</button>
+                    <input type="text" id="chat-input" placeholder="Type a prompt or code request..." onkeypress="handleKey(event)">
+                    <button class="send-btn" onclick="sendMessage()">TRANSMIT</button>
+                </div>
             </div>
         </div>
     </div>
@@ -668,16 +727,18 @@
         const aiProviderSelect = document.getElementById('ai-provider-select');
         const puterModelSelect = document.getElementById('puter-model-select');
         const archProviderLabel = document.getElementById('arch-provider');
+        const filePreviewContainer = document.getElementById('file-preview-container');
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}`;
         let socket;
 
-        // Session Memory & Preferences State
+        // Session Memory & Staged Files State
         let tabs = [];
         let activeTabId = null;
         let totalTokenCount = 0;
         let lastPingTime = Date.now();
+        let stagedFiles = []; // Holds queued files waiting to be sent
         const MAX_RENDERED_DOM_NODES = 25;
 
         // Load Preferences from localStorage on startup
@@ -697,12 +758,8 @@
             document.getElementById('pref-persistence').checked = preferences.persistence;
             document.getElementById('pref-autoscroll').checked = preferences.autoscroll;
             document.getElementById('pref-telemetry').checked = preferences.telemetry;
-            if (preferences.provider) {
-                aiProviderSelect.value = preferences.provider;
-            }
-            if (preferences.puterModel) {
-                puterModelSelect.value = preferences.puterModel;
-            }
+            if (preferences.provider) aiProviderSelect.value = preferences.provider;
+            if (preferences.puterModel) puterModelSelect.value = preferences.puterModel;
             updateTelemetryDisplay();
         }
 
@@ -784,7 +841,6 @@
             }
         }
 
-        // Close popup when clicking outside the sidebar
         window.addEventListener('click', (e) => {
             if (!e.target.closest('.sidebar')) {
                 toggleSettings(false);
@@ -821,7 +877,6 @@
             toggleSettings(false);
         }
 
-        // Auto-capture '/' key focus
         window.addEventListener('keydown', (e) => {
             if (e.key === '/' && document.activeElement !== chatInput) {
                 e.preventDefault();
@@ -829,35 +884,15 @@
             }
         });
 
-        // Drag and Drop File Handlers
         let dragCounter = 0;
-
-        mainLayout.addEventListener('dragenter', (e) => {
-            e.preventDefault();
-            dragCounter++;
-            dropOverlay.classList.add('active');
-        });
-
-        mainLayout.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            dragCounter--;
-            if (dragCounter === 0) {
-                dropOverlay.classList.remove('active');
-            }
-        });
-
-        mainLayout.addEventListener('dragover', (e) => {
-            e.preventDefault();
-        });
-
+        mainLayout.addEventListener('dragenter', (e) => { e.preventDefault(); dragCounter++; dropOverlay.classList.add('active'); });
+        mainLayout.addEventListener('dragleave', (e) => { e.preventDefault(); dragCounter--; if (dragCounter === 0) dropOverlay.classList.remove('active'); });
+        mainLayout.addEventListener('dragover', (e) => { e.preventDefault(); });
         mainLayout.addEventListener('drop', (e) => {
             e.preventDefault();
             dragCounter = 0;
             dropOverlay.classList.remove('active');
-
-            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                processFiles(e.dataTransfer.files);
-            }
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) processFiles(e.dataTransfer.files);
         });
 
         function handleFileSelect(event) {
@@ -867,15 +902,17 @@
             }
         }
 
+        // Stage files into queue and render preview chips above chatbar
         function processFiles(files) {
             Array.from(files).forEach(file => {
                 const reader = new FileReader();
-                logSystemMessage(`System: Scanning file payload -> [${file.name}] (${(file.size/1024).toFixed(1)} KB)...`);
-                
                 reader.onload = (e) => {
-                    const content = e.target.result;
-                    const scanPrompt = `Analyze and scan the following attached file contents from [${file.name}]:\n\n\`\`\`\n${content}\n\`\`\``;
-                    dispatchAIPrompt(scanPrompt, `UPLOAD FILE: ${file.name}`);
+                    stagedFiles.push({
+                        name: file.name,
+                        size: (file.size / 1024).toFixed(1) + ' KB',
+                        content: e.target.result
+                    });
+                    renderFilePreviews();
                 };
 
                 if (file.type.startsWith('image/')) {
@@ -884,6 +921,29 @@
                     reader.readAsText(file);
                 }
             });
+        }
+
+        function renderFilePreviews() {
+            filePreviewContainer.innerHTML = '';
+            if (stagedFiles.length > 0) {
+                filePreviewContainer.classList.add('active');
+                stagedFiles.forEach((file, index) => {
+                    const chip = document.createElement('div');
+                    chip.className = 'file-chip';
+                    chip.innerHTML = `
+                        <span>📄 ${file.name} (${file.size})</span>
+                        <button onclick="removeStagedFile(${index})" title="Remove file">×</button>
+                    `;
+                    filePreviewContainer.appendChild(chip);
+                });
+            } else {
+                filePreviewContainer.classList.remove('active');
+            }
+        }
+
+        function removeStagedFile(index) {
+            stagedFiles.splice(index, 1);
+            renderFilePreviews();
         }
 
         function connectWebSocket() {
@@ -1038,7 +1098,19 @@
         }
 
         function sendMessage() {
-            const promptText = chatInput.value.trim();
+            let promptText = chatInput.value.trim();
+            
+            // If files are staged, prepend their contents into the prompt payload
+            if (stagedFiles.length > 0) {
+                let filePayloadText = "";
+                stagedFiles.forEach(file => {
+                    filePayloadText += `Analyze and scan the following attached file contents from [${file.name}]:\n\n\`\`\`\n${file.content}\n\`\`\`\n\n`;
+                });
+                promptText = filePayloadText + promptText;
+                stagedFiles = [];
+                renderFilePreviews();
+            }
+
             if (!promptText) return;
             chatInput.value = '';
             dispatchAIPrompt(promptText, promptText);
@@ -1049,7 +1121,7 @@
             if (!currentTab) return;
 
             if (currentTab.messages.length <= 1 && currentTab.title === 'New Session') {
-                currentTab.title = promptText.slice(0, 20) + '...';
+                currentTab.title = displayUserText.slice(0, 20) + '...';
                 renderTabs();
             }
 
