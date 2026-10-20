@@ -563,7 +563,18 @@
                 <div class="popup-section-title">AI Provider Engine</div>
                 <select id="ai-provider-select" class="model-select" onchange="savePreferences()">
                     <option value="cloudflare">CLOUDFLARE AI (Rotating Profiles)</option>
-                    <option value="puter">PUTER AI (Claude / GPT)</option>
+                    <option value="puter">PUTER AI (Multi-Model)</option>
+                </select>
+
+                <div class="popup-section-title">Puter AI Model Selection</div>
+                <select id="puter-model-select" class="model-select" onchange="savePreferences()">
+                    <option value="gpt-5.6-luna">GPT-5.6 Luna</option>
+                    <option value="claude-sonnet-5-5">Claude Sonnet 5.5</option>
+                    <option value="grok-4-fast">xAI Grok 4 Fast</option>
+                    <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                    <option value="deepseek-flash">DeepSeek V4.1 Flash</option>
+                    <option value="deepseek-v4-pro">DeepSeek V4 Pro</option>
+                    <option value="gpt-6-luna">OpenAI GPT-6 Luna</option>
                 </select>
 
                 <div class="popup-section-title">Preferences</div>
@@ -655,6 +666,7 @@
         const telemetryPing = document.getElementById('telemetry-ping');
         const telemetryTokens = document.getElementById('telemetry-tokens');
         const aiProviderSelect = document.getElementById('ai-provider-select');
+        const puterModelSelect = document.getElementById('puter-model-select');
         const archProviderLabel = document.getElementById('arch-provider');
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -673,7 +685,8 @@
             persistence: true,
             autoscroll: true,
             telemetry: true,
-            provider: 'cloudflare'
+            provider: 'cloudflare',
+            puterModel: 'gpt-5.6-luna'
         };
 
         function loadPreferences() {
@@ -687,6 +700,9 @@
             if (preferences.provider) {
                 aiProviderSelect.value = preferences.provider;
             }
+            if (preferences.puterModel) {
+                puterModelSelect.value = preferences.puterModel;
+            }
             updateTelemetryDisplay();
         }
 
@@ -695,13 +711,14 @@
             preferences.autoscroll = document.getElementById('pref-autoscroll').checked;
             preferences.telemetry = document.getElementById('pref-telemetry').checked;
             preferences.provider = aiProviderSelect.value;
+            preferences.puterModel = puterModelSelect.value;
             localStorage.setItem('cluster_preferences', JSON.stringify(preferences));
             updateTelemetryDisplay();
         }
 
         function updateTelemetryDisplay() {
             telemetryReadout.style.display = preferences.telemetry ? 'flex' : 'none';
-            archProviderLabel.textContent = preferences.provider === 'cloudflare' ? 'Cloudflare AI Cluster' : 'Puter.js AI Bridge';
+            archProviderLabel.textContent = preferences.provider === 'cloudflare' ? 'Cloudflare AI Cluster' : `Puter AI (${preferences.puterModel})`;
         }
 
         function loadSavedSessions() {
@@ -1047,15 +1064,15 @@
 
             if (preferences.provider === 'puter') {
                 try {
-                    clusterState.textContent = 'CLUSTER: PUTER.AI ACTIVE';
-                    const chatResp = await puter.ai.chat(promptText, { model: 'claude-sonnet-5-5', stream: true });
+                    clusterState.textContent = `CLUSTER: PUTER (${preferences.puterModel}) ACTIVE`;
+                    const chatResp = await puter.ai.chat(promptText, { model: preferences.puterModel, stream: true });
                     removeLoadingIndicator();
                     
                     let fullAiText = "";
                     const aiMsgIdx = currentTab.messages.push({ type: 'ai', content: "" }) - 1;
 
                     for await (const part of chatResp) {
-                        const chunk = part?.text || "";
+                        const chunk = part?.text || part?.reasoning || "";
                         fullAiText += chunk;
                         currentTab.messages[aiMsgIdx].content = fullAiText;
                         renderActiveTerminal();
