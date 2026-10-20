@@ -10,8 +10,9 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(express.json());
 
-// Serve static files from the root directory
+// Serve static files from root directory & static assets folder
 app.use(express.static(__dirname));
+app.use('/assets', express.static(path.join(__dirname, 'assets')));
 
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
@@ -55,7 +56,6 @@ async function callCloudflare(prompt) {
   while (attempts < accounts.length) {
     // Find next available account that is NOT on 24-hour cooldown
     let selectedAccount = null;
-    let candidateIndex = 0;
 
     for (let i = 0; i < accounts.length; i++) {
       const acc = accounts[i];
@@ -67,12 +67,11 @@ async function callCloudflare(prompt) {
       // If account is free of cooldown, pick it as default/next
       if (!accountCooldowns[acc.index]) {
         selectedAccount = acc;
-        candidateIndex = i;
         break;
       }
     }
 
-    // If ALL accounts are currently on 24-hour cooldown, fallback to the one whose cooldown expires soonest or force reset
+    // If ALL accounts are currently on 24-hour cooldown
     if (!selectedAccount) {
       throw new Error('All 10 Cloudflare account profiles are currently exhausted on 24-hour cooldown. Please wait for resets.');
     }
