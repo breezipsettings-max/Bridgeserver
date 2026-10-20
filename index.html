@@ -6,6 +6,8 @@
     <title>CLUSTER SYNC ENGINE AI TERMINAL</title>
     <!-- Marked JS for clean markdown parsing -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Puter.js SDK for Puter AI option -->
+    <script src="https://js.puter.com/v2/"></script>
     <style>
         :root {
             --bg-color: #080a0f;
@@ -224,6 +226,19 @@
             cursor: pointer;
             width: 14px;
             height: 14px;
+        }
+
+        .model-select {
+            background: var(--terminal-bg);
+            color: var(--accent-cyan);
+            border: 1px solid var(--border-color);
+            padding: 6px;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 0.75rem;
+            width: 100%;
+            outline: none;
+            cursor: pointer;
         }
 
         .export-btn {
@@ -545,6 +560,12 @@
                     <button class="close-popup" onclick="toggleSettings(false)">×</button>
                 </div>
                 
+                <div class="popup-section-title">AI Provider Engine</div>
+                <select id="ai-provider-select" class="model-select" onchange="savePreferences()">
+                    <option value="cloudflare">CLOUDFLARE AI (Rotating Profiles)</option>
+                    <option value="puter">PUTER AI (Claude / GPT)</option>
+                </select>
+
                 <div class="popup-section-title">Preferences</div>
                 
                 <div class="pref-item">
@@ -604,7 +625,7 @@
             
             <div class="header-box">
                 <div>
-                    <strong>Architecture Active:</strong> <span>State Synchronization</span> active | 
+                    <strong>Architecture Active:</strong> <span id="arch-provider">Cloudflare AI Cluster</span> active | 
                     <span>Vector & Embedding Distribution</span> synced
                 </div>
                 <div id="cluster-state">CLUSTER: ACTIVE</div>
@@ -633,6 +654,8 @@
         const telemetryReadout = document.getElementById('telemetry-readout');
         const telemetryPing = document.getElementById('telemetry-ping');
         const telemetryTokens = document.getElementById('telemetry-tokens');
+        const aiProviderSelect = document.getElementById('ai-provider-select');
+        const archProviderLabel = document.getElementById('arch-provider');
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}`;
@@ -649,7 +672,8 @@
         let preferences = {
             persistence: true,
             autoscroll: true,
-            telemetry: true
+            telemetry: true,
+            provider: 'cloudflare'
         };
 
         function loadPreferences() {
@@ -660,6 +684,9 @@
             document.getElementById('pref-persistence').checked = preferences.persistence;
             document.getElementById('pref-autoscroll').checked = preferences.autoscroll;
             document.getElementById('pref-telemetry').checked = preferences.telemetry;
+            if (preferences.provider) {
+                aiProviderSelect.value = preferences.provider;
+            }
             updateTelemetryDisplay();
         }
 
@@ -667,12 +694,14 @@
             preferences.persistence = document.getElementById('pref-persistence').checked;
             preferences.autoscroll = document.getElementById('pref-autoscroll').checked;
             preferences.telemetry = document.getElementById('pref-telemetry').checked;
+            preferences.provider = aiProviderSelect.value;
             localStorage.setItem('cluster_preferences', JSON.stringify(preferences));
             updateTelemetryDisplay();
         }
 
         function updateTelemetryDisplay() {
             telemetryReadout.style.display = preferences.telemetry ? 'flex' : 'none';
+            archProviderLabel.textContent = preferences.provider === 'cloudflare' ? 'Cloudflare AI Cluster' : 'Puter.js AI Bridge';
         }
 
         function loadSavedSessions() {
@@ -829,36 +858,7 @@
                 reader.onload = (e) => {
                     const content = e.target.result;
                     const scanPrompt = `Analyze and scan the following attached file contents from [${file.name}]:\n\n\`\`\`\n${content}\n\`\`\``;
-                    
-                    const currentTab = getActiveTab();
-                    if (currentTab) {
-                        currentTab.messages.push({ type: 'user', content: `UPLOAD FILE: ${file.name}` });
-                        renderActiveTerminal();
-                        showLoadingIndicator();
-
-                        if (socket && socket.readyState === WebSocket.OPEN) {
-                            socket.send(JSON.stringify({ prompt: scanPrompt }));
-                        } else {
-                            fetch('/api/ask', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ prompt: scanPrompt })
-                            })
-                            .then(res => res.json())
-                            .then(data => {
-                                removeLoadingIndicator();
-                                if (data.success) {
-                                    renderFormattedMessage(data.result, 'ai-msg');
-                                } else {
-                                    logSystemMessage("Cluster Error: " + (data.error || 'Scan failed'));
-                                }
-                            })
-                            .catch(() => {
-                                removeLoadingIndicator();
-                                logSystemMessage("System Error: Failed to transmit scanned file stream.");
-                            });
-                        }
-                    }
+                    dispatchAIPrompt(scanPrompt, `UPLOAD FILE: ${file.name}`);
                 };
 
                 if (file.type.startsWith('image/')) {
@@ -1023,7 +1023,11 @@
         function sendMessage() {
             const promptText = chatInput.value.trim();
             if (!promptText) return;
+            chatInput.value = '';
+            dispatchAIPrompt(promptText, promptText);
+        }
 
+        async function dispatchAIPrompt(promptText, displayUserText) {
             const currentTab = getActiveTab();
             if (!currentTab) return;
 
@@ -1035,36 +1039,62 @@
             totalTokenCount += Math.round(promptText.length / 4);
             telemetryTokens.textContent = totalTokenCount;
 
-            currentTab.messages.push({ type: 'user', content: promptText });
+            currentTab.messages.push({ type: 'user', content: displayUserText });
             renderActiveTerminal();
-            chatInput.value = '';
             saveSessions();
 
             showLoadingIndicator();
 
-            if (socket && socket.readyState === WebSocket.OPEN) {
-                socket.send(JSON.stringify({ prompt: promptText }));
-            } else {
-                fetch('/api/ask', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: promptText })
-                })
-                .then(res => res.json())
-                .then(data => {
+            if (preferences.provider === 'puter') {
+                try {
+                    clusterState.textContent = 'CLUSTER: PUTER.AI ACTIVE';
+                    const chatResp = await puter.ai.chat(promptText, { model: 'claude-sonnet-5-5', stream: true });
                     removeLoadingIndicator();
-                    if (data.success) {
-                        totalTokenCount += Math.round(data.result.length / 4);
-                        telemetryTokens.textContent = totalTokenCount;
-                        renderFormattedMessage(data.result, 'ai-msg');
-                    } else {
-                        logSystemMessage("Cluster Error: " + (data.error || 'Unknown error'));
+                    
+                    let fullAiText = "";
+                    const aiMsgIdx = currentTab.messages.push({ type: 'ai', content: "" }) - 1;
+
+                    for await (const part of chatResp) {
+                        const chunk = part?.text || "";
+                        fullAiText += chunk;
+                        currentTab.messages[aiMsgIdx].content = fullAiText;
+                        renderActiveTerminal();
                     }
-                })
-                .catch(() => {
+
+                    totalTokenCount += Math.round(fullAiText.length / 4);
+                    telemetryTokens.textContent = totalTokenCount;
+                    clusterState.textContent = 'CLUSTER: ACTIVE';
+                    saveSessions();
+                } catch (err) {
                     removeLoadingIndicator();
-                    logSystemMessage("System Error: Failed to reach backend cluster node.");
-                });
+                    logSystemMessage("Puter Error: " + (err.message || 'Failed to query Puter AI'));
+                    clusterState.textContent = 'CLUSTER: ERROR';
+                }
+            } else {
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    socket.send(JSON.stringify({ prompt: promptText }));
+                } else {
+                    fetch('/api/ask', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt: promptText })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        removeLoadingIndicator();
+                        if (data.success) {
+                            totalTokenCount += Math.round(data.result.length / 4);
+                            telemetryTokens.textContent = totalTokenCount;
+                            renderFormattedMessage(data.result, 'ai-msg');
+                        } else {
+                            logSystemMessage("Cluster Error: " + (data.error || 'Unknown error'));
+                        }
+                    })
+                    .catch(() => {
+                        removeLoadingIndicator();
+                        logSystemMessage("System Error: Failed to reach backend cluster node.");
+                    });
+                }
             }
         }
 
