@@ -10,12 +10,14 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(express.json());
 
+// Serve static files from root directory & static assets folder
 app.use(express.static(__dirname));
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
 
+// Custom request headers for API calls
 const requestHeaders = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Accept': '*/*',
@@ -23,9 +25,11 @@ const requestHeaders = {
     'Cache-Control': 'no-cache'
 };
 
+// Track account cooldowns (24-hour lockout memory map)
 const accountCooldowns = {};
-const COOLDOWN_DURATION_MS = 24 * 60 * 60 * 1000;
+const COOLDOWN_DURATION_MS = 24 * 60 * 60 * 1000; // 24 Hours
 
+// Load all configured Cloudflare accounts dynamically (1 to 10)
 function getAccounts() {
   const accounts = [];
   for (let i = 1; i <= 10; i++) {
@@ -38,6 +42,7 @@ function getAccounts() {
   return accounts;
 }
 
+// Multi-account rotating Cloudflare AI call with 24-hour cooldown memory & failover
 async function callCloudflare(prompt) {
   const accounts = getAccounts();
   if (accounts.length === 0) {
@@ -63,7 +68,7 @@ async function callCloudflare(prompt) {
     }
 
     if (!selectedAccount) {
-      throw new Error('All 10 Cloudflare account profiles are currently exhausted on 24-hour cooldown.');
+      throw new Error('All 10 Cloudflare account profiles are currently exhausted on 24-hour cooldown. Please wait for resets.');
     }
 
     const model = '@cf/meta/llama-3.2-1b-instruct';
@@ -88,7 +93,7 @@ async function callCloudflare(prompt) {
       const data = await response.json();
 
       if (response.status === 429 || (!data.success && JSON.stringify(data.errors).toLowerCase().includes('rate'))) {
-        console.warn(`[Rate Limit] ${selectedAccount.label} hit limit. Locking out for 24 hours...`);
+        console.warn(`[Rate Limit] ${selectedAccount.label} hit limit. Locking out for 24 hours and rotating...`);
         accountCooldowns[selectedAccount.index] = Date.now() + COOLDOWN_DURATION_MS;
         attempts++;
         continue;
@@ -98,11 +103,7 @@ async function callCloudflare(prompt) {
         throw new Error(JSON.stringify(data.errors));
       }
 
-      // Return both text output and actual token usage from Cloudflare API
-      return {
-        text: data.result.response,
-        usage: data.result.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }
-      };
+      return data.result.response;
 
     } catch (error) {
       console.error(`[Cluster Error] ${selectedAccount.label} failed: ${error.message}`);
@@ -117,24 +118,28 @@ async function callCloudflare(prompt) {
   throw new Error('All Cloudflare accounts are currently rate-limited or locked out.');
 }
 
+// REST AI endpoint
 app.post('/api/ask', async (req, res) => {
   const { prompt } = req.body;
   if (!prompt) return res.status(400).json({ error: 'Prompt is required.' });
 
   try {
-    const { text, usage } = await callCloudflare(prompt);
-    res.json({ success: true, result: text, usage });
+    const result = await callCloudflare(prompt);
+    res.json({ success: true, result });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
+// WebSocket connection handling with Idle detection & Heartbeat
 wss.on('connection', (ws) => {
     ws.isAlive = true;
     ws.lastActivity = Date.now();
-    const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+    const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 Minutes Idle threshold
 
-    ws.on('pong', () => { ws.isAlive = true; });
+    ws.on('pong', () => { 
+        ws.isAlive = true; 
+    });
 
     ws.on('message', async (message) => {
         ws.lastActivity = Date.now();
@@ -146,8 +151,8 @@ wss.on('connection', (ws) => {
                 return;
             }
 
-            const { text, usage } = await callCloudflare(prompt);
-            ws.send(JSON.stringify({ success: true, result: text, usage }));
+            const result = await callCloudflare(prompt);
+            ws.send(JSON.stringify({ success: true, result }));
         } catch (error) {
             ws.send(JSON.stringify({ success: false, error: error.message }));
         }
@@ -155,13 +160,16 @@ wss.on('connection', (ws) => {
 
     const idleCheck = setInterval(() => {
         if (Date.now() - ws.lastActivity > IDLE_TIMEOUT_MS) {
-            ws.send(JSON.stringify({ systemInfo: 'Connection entering IDLE state due to inactivity.' }));
+            ws.send(JSON.stringify({ systemInfo: 'Connection entering IDLE state due to inactivity to conserve cluster resources.' }));
         }
     }, 60000);
 
-    ws.on('close', () => { clearInterval(idleCheck); });
+    ws.on('close', () => {
+        clearInterval(idleCheck);
+    });
 });
 
+// Heartbeat ping interval (Every 20s to stay well within Render's 30s timeout)
 const interval = setInterval(() => {
     wss.clients.forEach((ws) => {
         if (ws.isAlive === false) return ws.terminate();
