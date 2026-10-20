@@ -6,6 +6,8 @@
     <title>CLUSTER SYNC ENGINE AI TERMINAL</title>
     <!-- Marked JS for clean markdown parsing -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Puter.js SDK for optional Puter AI engine -->
+    <script src="https://js.puter.com/v2/"></script>
     <style>
         :root {
             --bg-color: #080a0f;
@@ -20,9 +22,7 @@
             --sidebar-width: 220px;
         }
 
-        * {
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
 
         body {
             background-color: var(--bg-color);
@@ -50,7 +50,6 @@
             overflow: hidden;
         }
 
-        /* Left Sidebar for Tabs & Settings */
         .sidebar {
             width: var(--sidebar-width);
             background: #0a0d12;
@@ -119,7 +118,6 @@
             border-left: 3px solid var(--accent-cyan);
         }
 
-        /* Sidebar Bottom Settings Button Placement */
         .sidebar-bottom {
             padding-top: 10px;
             border-top: 1px solid var(--border-color);
@@ -156,7 +154,6 @@
             object-fit: contain;
         }
 
-        /* Redesigned Floating Popup Menu with Preferences */
         #settings-popup {
             position: absolute;
             bottom: 65px;
@@ -169,13 +166,11 @@
             box-shadow: 0 -5px 25px rgba(0,0,0,0.8);
             display: none;
             flex-direction: column;
-            gap: 12px;
+            gap: 10px;
             z-index: 200;
         }
 
-        #settings-popup.active {
-            display: flex;
-        }
+        #settings-popup.active { display: flex; }
 
         .popup-header {
             display: flex;
@@ -207,7 +202,8 @@
             letter-spacing: 1px;
             color: var(--text-dim);
             text-transform: uppercase;
-            margin-bottom: 4px;
+            margin-top: 4px;
+            margin-bottom: 2px;
         }
 
         .pref-item {
@@ -216,7 +212,7 @@
             align-items: center;
             font-size: 0.75rem;
             color: var(--text-bright);
-            padding: 4px 0;
+            padding: 3px 0;
         }
 
         .pref-item input[type="checkbox"] {
@@ -226,11 +222,24 @@
             height: 14px;
         }
 
+        .model-select {
+            background: var(--terminal-bg);
+            color: var(--accent-cyan);
+            border: 1px solid var(--border-color);
+            padding: 6px;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 0.75rem;
+            width: 100%;
+            outline: none;
+            cursor: pointer;
+        }
+
         .export-btn {
             background: var(--terminal-bg);
             color: var(--accent-cyan);
             border: 1px solid var(--border-color);
-            padding: 10px;
+            padding: 8px;
             border-radius: 6px;
             cursor: pointer;
             font-family: inherit;
@@ -246,7 +255,6 @@
             background: rgba(0,229,255,0.05);
         }
 
-        /* Right Terminal Area */
         .terminal-container {
             flex: 1;
             display: flex;
@@ -286,9 +294,7 @@
             gap: 15px;
         }
 
-        .telemetry-readout span {
-            color: var(--accent-cyan);
-        }
+        .telemetry-readout span { color: var(--accent-cyan); }
 
         #status {
             width: 10px;
@@ -331,7 +337,6 @@
             box-shadow: inset 0 0 25px rgba(0,0,0,0.9);
         }
 
-        /* Custom Scrollbar */
         #terminal::-webkit-scrollbar { width: 6px; }
         #terminal::-webkit-scrollbar-track { background: var(--terminal-bg); }
         #terminal::-webkit-scrollbar-thumb { background: #1a222d; border-radius: 3px; }
@@ -350,7 +355,6 @@
         .ai-msg { color: var(--text-bright); }
         .ai-msg strong { color: var(--accent-green); }
 
-        /* Pure CSS Glowing Loading Spinner Node */
         .loading-node {
             display: flex;
             align-items: center;
@@ -376,7 +380,6 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Code box formatting with COPY button */
         .code-box {
             position: relative;
             background: var(--code-bg);
@@ -412,12 +415,7 @@
 
         .copy-btn:hover { background: var(--accent-green); color: #000; }
 
-        /* Input Cluster & Plus Button */
-        .input-cluster { 
-            display: flex; 
-            gap: 10px; 
-            position: relative;
-        }
+        .input-cluster { display: flex; gap: 10px; position: relative; }
 
         .plus-btn {
             background: var(--terminal-bg);
@@ -473,13 +471,9 @@
         button.send-btn:hover { opacity: 0.9; }
         button.send-btn:active { transform: scale(0.98); }
 
-        /* Drag & Drop Circle Overlay */
         #drop-overlay {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(8, 10, 15, 0.85);
             backdrop-filter: blur(4px);
             z-index: 100;
@@ -489,9 +483,7 @@
             pointer-events: none;
         }
 
-        #drop-overlay.active {
-            display: flex;
-        }
+        #drop-overlay.active { display: flex; }
 
         .drop-circle-box {
             width: 320px;
@@ -510,17 +502,8 @@
             padding: 20px;
         }
 
-        .drop-circle-box h3 {
-            margin: 0 0 8px 0;
-            font-size: 1rem;
-            letter-spacing: 1px;
-        }
-
-        .drop-circle-box p {
-            margin: 0;
-            font-size: 0.75rem;
-            color: var(--text-dim);
-        }
+        .drop-circle-box h3 { margin: 0 0 8px 0; font-size: 1rem; letter-spacing: 1px; }
+        .drop-circle-box p { margin: 0; font-size: 0.75rem; color: var(--text-dim); }
 
         @keyframes pulse-ring {
             0% { box-shadow: 0 0 0 0 rgba(0, 255, 102, 0.3); }
@@ -528,23 +511,25 @@
             100% { box-shadow: 0 0 0 0 rgba(0, 255, 102, 0); }
         }
 
-        /* Hidden File Input */
-        #file-selector {
-            display: none;
-        }
+        #file-selector { display: none; }
     </style>
 </head>
 <body>
     <div class="main-layout" id="main-layout">
         <!-- Sidebar for Chat Tabs -->
         <div class="sidebar">
-            <!-- Settings Popup Menu with Preferences -->
             <div id="settings-popup">
                 <div class="popup-header">
-                    <h3>CONFIG & PREFERENCES</h3>
+                    <h3>CONFIG & AI PROVIDER</h3>
                     <button class="close-popup" onclick="toggleSettings(false)">×</button>
                 </div>
                 
+                <div class="popup-section-title">AI Engine Provider</div>
+                <select id="ai-provider-select" class="model-select" onchange="savePreferences()">
+                    <option value="cloudflare">CLOUDFLARE AI (Rotating Profiles)</option>
+                    <option value="puter">PUTER AI (Claude / GPT)</option>
+                </select>
+
                 <div class="popup-section-title">Preferences</div>
                 
                 <div class="pref-item">
@@ -581,9 +566,7 @@
             </div>
         </div>
 
-        <!-- Terminal Main Area -->
         <div class="terminal-container" id="terminal-container">
-            <!-- Drag and Drop Overlay Circle -->
             <div id="drop-overlay">
                 <div class="drop-circle-box">
                     <h3>[ DROP FILES HERE ]</h3>
@@ -598,13 +581,13 @@
                 </div>
                 <div class="telemetry-readout" id="telemetry-readout">
                     <div>PING: <span id="telemetry-ping">--ms</span></div>
-                    <div>TOKENS: <span id="telemetry-tokens">0</span></div>
+                    <div>TOKENS USED: <span id="telemetry-tokens">0</span></div>
                 </div>
             </div>
             
             <div class="header-box">
                 <div>
-                    <strong>Architecture Active:</strong> <span>State Synchronization</span> active | 
+                    <strong>Architecture Active:</strong> <span id="arch-provider">Cloudflare Workers AI</span> active | 
                     <span>Vector & Embedding Distribution</span> synced
                 </div>
                 <div id="cluster-state">CLUSTER: ACTIVE</div>
@@ -633,92 +616,11 @@
         const telemetryReadout = document.getElementById('telemetry-readout');
         const telemetryPing = document.getElementById('telemetry-ping');
         const telemetryTokens = document.getElementById('telemetry-tokens');
+        const aiProviderSelect = document.getElementById('ai-provider-select');
+        const archProviderLabel = document.getElementById('arch-provider');
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}`;
-        let socket;
-
-        // Session Memory & Preferences State
-        let tabs = [];
-        let activeTabId = null;
-        let totalTokenCount = 0;
-        let lastPingTime = Date.now();
-        const MAX_RENDERED_DOM_NODES = 25;
-
-        // Load Preferences from localStorage on startup
-        let preferences = {
-            persistence: true,
-            autoscroll: true,
-            telemetry: true
-        };
-
-        function loadPreferences() {
-            const savedPrefs = localStorage.getItem('cluster_preferences');
-            if (savedPrefs) {
-                try { preferences = JSON.parse(savedPrefs); } catch(e) {}
-            }
-            document.getElementById('pref-persistence').checked = preferences.persistence;
-            document.getElementById('pref-autoscroll').checked = preferences.autoscroll;
-            document.getElementById('pref-telemetry').checked = preferences.telemetry;
-            updateTelemetryDisplay();
-        }
-
-        function savePreferences() {
-            preferences.persistence = document.getElementById('pref-persistence').checked;
-            preferences.autoscroll = document.getElementById('pref-autoscroll').checked;
-            preferences.telemetry = document.getElementById('pref-telemetry').checked;
-            localStorage.setItem('cluster_preferences', JSON.stringify(preferences));
-            updateTelemetryDisplay();
-        }
-
-        function updateTelemetryDisplay() {
-            telemetryReadout.style.display = preferences.telemetry ? 'flex' : 'none';
-        }
-
-        function loadSavedSessions() {
-            if (!preferences.persistence) return false;
-            const savedTabs = localStorage.getItem('cluster_tabs');
-            const savedActiveId = localStorage.getItem('cluster_active_id');
-            if (savedTabs) {
-                try {
-                    tabs = JSON.parse(savedTabs);
-                    if (tabs.length > 0) {
-                        activeTabId = savedActiveId && tabs.some(t => t.id === savedActiveId) ? savedActiveId : tabs[0].id;
-                        renderTabs();
-                        renderActiveTerminal();
-                        return true;
-                    }
-                } catch(e) {}
-            }
-            return false;
-        }
-
-        function saveSessions() {
-            if (!preferences.persistence) return;
-            localStorage.setItem('cluster_tabs', JSON.stringify(tabs));
-            localStorage.setItem('cluster_active_id', activeTabId);
-        }
-
-        function createNewTab(title = 'New Session') {
-            const tabId = 'tab_' + Date.now();
-            const newTab = { id: tabId, title, messages: [] };
-            tabs.push(newTab);
-            setActiveTab(tabId);
-            saveSessions();
-        }
-
-        function setActiveTab(tabId) {
-            activeTabId = tabId;
-            renderTabs();
-            renderActiveTerminal();
-            saveSessions();
-        }
-
-        function renderTabs() {
-            tabList.innerHTML = '';
-            tabs.forEach(t => {
-                const div = document.createElement('div');
-                div.className = `tab-item ${t.id === activeTabId ? 'active' : ''}`;
+        const wsUrl = `${protocol}//${window.location.host}`; let socket;  let tabs = []; let activeTabId = null; let totalTokenCount = 0; let lastPingTime = Date.now(); const MAX_RENDERED_DOM_NODES = 25;  let preferences = { persistence: true, autoscroll: true, telemetry: true, provider: 'cloudflare' };  function loadPreferences() { const savedPrefs = localStorage.getItem('cluster_preferences'); if (savedPrefs) { try { preferences = JSON.parse(savedPrefs); } catch(e) {} } document.getElementById('pref-persistence').checked = preferences.persistence; document.getElementById('pref-autoscroll').checked = preferences.autoscroll; document.getElementById('pref-telemetry').checked = preferences.telemetry; if (preferences.provider) { aiProviderSelect.value = preferences.provider; } updateTelemetryDisplay(); }  function savePreferences() { preferences.persistence = document.getElementById('pref-persistence').checked; preferences.autoscroll = document.getElementById('pref-autoscroll').checked; preferences.telemetry = document.getElementById('pref-telemetry').checked; preferences.provider = aiProviderSelect.value; localStorage.setItem('cluster_preferences', JSON.stringify(preferences)); updateTelemetryDisplay(); }  function updateTelemetryDisplay() { telemetryReadout.style.display = preferences.telemetry ? 'flex' : 'none'; archProviderLabel.textContent = preferences.provider === 'cloudflare' ? 'Cloudflare Workers AI' : 'Puter.js AI Bridge'; }  function loadSavedSessions() { if (!preferences.persistence) return false; const savedTabs = localStorage.getItem('cluster_tabs'); const savedActiveId = localStorage.getItem('cluster_active_id'); const savedTokens = localStorage.getItem('cluster_total_tokens'); if (savedTokens) { totalTokenCount = parseInt(savedTokens, 10) \vert{}\vert{} 0; telemetryTokens.textContent = totalTokenCount; } if (savedTabs) { try { tabs = JSON.parse(savedTabs); if (tabs.length > 0) { activeTabId = savedActiveId && tabs.some(t => t.id === savedActiveId) ? savedActiveId : tabs[0].id; renderTabs(); renderActiveTerminal(); return true; } } catch(e) {} } return false; }  function saveSessions() { if (!preferences.persistence) return; localStorage.setItem('cluster_tabs', JSON.stringify(tabs)); localStorage.setItem('cluster_active_id', activeTabId); localStorage.setItem('cluster_total_tokens', totalTokenCount); }  function createNewTab(title = 'New Session') { const tabId = 'tab_' + Date.now(); const newTab = { id: tabId, title, messages: [] }; tabs.push(newTab); setActiveTab(tabId); saveSessions(); }  function setActiveTab(tabId) { activeTabId = tabId; renderTabs(); renderActiveTerminal(); saveSessions(); }  function renderTabs() { tabList.innerHTML = ''; tabs.forEach(t => { const div = document.createElement('div'); div.className = `tab-item ${t.id === activeTabId ? 'active' : ''}`;
                 div.textContent = t.title;
                 div.onclick = () => setActiveTab(t.id);
                 tabList.appendChild(div);
@@ -738,7 +640,6 @@
             }
         }
 
-        // Close popup when clicking outside the sidebar
         window.addEventListener('click', (e) => {
             if (!e.target.closest('.sidebar')) {
                 toggleSettings(false);
@@ -755,19 +656,9 @@
             let mdContent = `# Cluster Sync Engine AI - ${currentTab.title}\n\n`;
             currentTab.messages.forEach(msg => {
                 if (msg.type === 'system') {
-                    mdContent += `> *${msg.content}*\n\n`;
-                } else if (msg.type === 'user') {
-                    mdContent += `**ADMIN:** ${msg.content}\n\n`;
+                    mdContent += `> *${msg.content}*\n\n`; } else if (msg.type === 'user') { mdContent += `**ADMIN:** ${msg.content}\n\n`;
                 } else if (msg.type === 'ai') {
-                    mdContent += `**AI NODE:**\n${msg.content}\n\n---\n\n`;
-                }
-            });
-
-            const blob = new Blob([mdContent], { type: 'text/markdown' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${currentTab.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_export.md`;
+                    mdContent += `**AI NODE:**\n${msg.content}\n\n---\n\n`; } });  const blob = new Blob([mdContent], { type: 'text/markdown' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${currentTab.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_export.md`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -775,7 +666,6 @@
             toggleSettings(false);
         }
 
-        // Auto-capture '/' key focus
         window.addEventListener('keydown', (e) => {
             if (e.key === '/' && document.activeElement !== chatInput) {
                 e.preventDefault();
@@ -783,35 +673,15 @@
             }
         });
 
-        // Drag and Drop File Handlers
         let dragCounter = 0;
-
-        mainLayout.addEventListener('dragenter', (e) => {
-            e.preventDefault();
-            dragCounter++;
-            dropOverlay.classList.add('active');
-        });
-
-        mainLayout.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            dragCounter--;
-            if (dragCounter === 0) {
-                dropOverlay.classList.remove('active');
-            }
-        });
-
-        mainLayout.addEventListener('dragover', (e) => {
-            e.preventDefault();
-        });
-
+        mainLayout.addEventListener('dragenter', (e) => { e.preventDefault(); dragCounter++; dropOverlay.classList.add('active'); });
+        mainLayout.addEventListener('dragleave', (e) => { e.preventDefault(); dragCounter--; if (dragCounter === 0) dropOverlay.classList.remove('active'); });
+        mainLayout.addEventListener('dragover', (e) => { e.preventDefault(); });
         mainLayout.addEventListener('drop', (e) => {
             e.preventDefault();
             dragCounter = 0;
             dropOverlay.classList.remove('active');
-
-            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                processFiles(e.dataTransfer.files);
-            }
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) processFiles(e.dataTransfer.files);
         });
 
         function handleFileSelect(event) {
@@ -825,47 +695,13 @@
             Array.from(files).forEach(file => {
                 const reader = new FileReader();
                 logSystemMessage(`System: Scanning file payload -> [${file.name}] (${(file.size/1024).toFixed(1)} KB)...`);
-                
                 reader.onload = (e) => {
                     const content = e.target.result;
-                    const scanPrompt = `Analyze and scan the following attached file contents from [${file.name}]:\n\n\`\`\`\n${content}\n\`\`\``;
-                    
-                    const currentTab = getActiveTab();
-                    if (currentTab) {
-                        currentTab.messages.push({ type: 'user', content: `UPLOAD FILE: ${file.name}` });
-                        renderActiveTerminal();
-                        showLoadingIndicator();
-
-                        if (socket && socket.readyState === WebSocket.OPEN) {
-                            socket.send(JSON.stringify({ prompt: scanPrompt }));
-                        } else {
-                            fetch('/api/ask', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ prompt: scanPrompt })
-                            })
-                            .then(res => res.json())
-                            .then(data => {
-                                removeLoadingIndicator();
-                                if (data.success) {
-                                    renderFormattedMessage(data.result, 'ai-msg');
-                                } else {
-                                    logSystemMessage("Cluster Error: " + (data.error || 'Scan failed'));
-                                }
-                            })
-                            .catch(() => {
-                                removeLoadingIndicator();
-                                logSystemMessage("System Error: Failed to transmit scanned file stream.");
-                            });
-                        }
-                    }
+                    const scanPrompt = `Analyze and scan the attached file contents from [${file.name}]:\n\n\`\`\`\n${content}\n\`\`\``;
+                    dispatchAIPrompt(scanPrompt, `UPLOAD FILE: ${file.name}`);
                 };
-
-                if (file.type.startsWith('image/')) {
-                    reader.readAsDataURL(file);
-                } else {
-                    reader.readAsText(file);
-                }
+                if (file.type.startsWith('image/')) reader.readAsDataURL(file);
+                else reader.readAsText(file);
             });
         }
 
@@ -887,8 +723,10 @@
                 try {
                     const data = JSON.parse(event.data);
                     if (data.result) {
-                        totalTokenCount += Math.round(data.result.length / 4);
-                        telemetryTokens.textContent = totalTokenCount;
+                        if (data.usage && data.usage.total_tokens) {
+                            totalTokenCount += data.usage.total_tokens;
+                            telemetryTokens.textContent = totalTokenCount;
+                        }
                         renderFormattedMessage(data.result, 'ai-msg');
                     } else if (data.systemInfo) {
                         logSystemMessage("System Notice: " + data.systemInfo);
@@ -925,9 +763,7 @@
                 <span>[AI NODE PROCESSING STREAM...]</span>
             `;
             terminal.appendChild(div);
-            if (preferences.autoscroll) {
-                terminal.scrollTop = terminal.scrollHeight;
-            }
+            if (preferences.autoscroll) terminal.scrollTop = terminal.scrollHeight;
         }
 
         function removeLoadingIndicator() {
@@ -999,9 +835,7 @@
                 }
             });
 
-            if (preferences.autoscroll) {
-                terminal.scrollTop = terminal.scrollHeight;
-            }
+            if (preferences.autoscroll) terminal.scrollTop = terminal.scrollHeight;
         }
 
         function renderFormattedMessage(markdownText, className) {
@@ -1015,15 +849,17 @@
         }
 
         function handleKey(event) {
-            if (event.key === 'Enter') {
-                sendMessage();
-            }
+            if (event.key === 'Enter') sendMessage();
         }
 
         function sendMessage() {
             const promptText = chatInput.value.trim();
             if (!promptText) return;
+            chatInput.value = '';
+            dispatchAIPrompt(promptText, promptText);
+        }
 
+        async function dispatchAIPrompt(promptText, displayUserText) {
             const currentTab = getActiveTab();
             if (!currentTab) return;
 
@@ -1032,43 +868,63 @@
                 renderTabs();
             }
 
-            totalTokenCount += Math.round(promptText.length / 4);
-            telemetryTokens.textContent = totalTokenCount;
-
-            currentTab.messages.push({ type: 'user', content: promptText });
+            currentTab.messages.push({ type: 'user', content: displayUserText });
             renderActiveTerminal();
-            chatInput.value = '';
             saveSessions();
-
             showLoadingIndicator();
 
-            if (socket && socket.readyState === WebSocket.OPEN) {
-                socket.send(JSON.stringify({ prompt: promptText }));
-            } else {
-                fetch('/api/ask', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: promptText })
-                })
-                .then(res => res.json())
-                .then(data => {
+            if (preferences.provider === 'puter') {
+                try {
+                    clusterState.textContent = 'CLUSTER: PUTER.AI ACTIVE';
+                    const chatResp = await puter.ai.chat(promptText, { model: 'claude-sonnet-5-5', stream: true });
                     removeLoadingIndicator();
-                    if (data.success) {
-                        totalTokenCount += Math.round(data.result.length / 4);
-                        telemetryTokens.textContent = totalTokenCount;
-                        renderFormattedMessage(data.result, 'ai-msg');
-                    } else {
-                        logSystemMessage("Cluster Error: " + (data.error || 'Unknown error'));
+                    
+                    let fullAiText = "";
+                    const aiMsgIdx = currentTab.messages.push({ type: 'ai', content: "" }) - 1;
+
+                    for await (const part of chatResp) {
+                        const chunk = part?.text || "";
+                        fullAiText += chunk;
+                        currentTab.messages[aiMsgIdx].content = fullAiText;
+                        renderActiveTerminal();
                     }
-                })
-                .catch(() => {
+
+                    clusterState.textContent = 'CLUSTER: ACTIVE';
+                    saveSessions();
+                } catch (err) {
                     removeLoadingIndicator();
-                    logSystemMessage("System Error: Failed to reach backend cluster node.");
-                });
+                    logSystemMessage("Puter Error: " + err.message);
+                }
+            } else {
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    socket.send(JSON.stringify({ prompt: promptText }));
+                } else {
+                    fetch('/api/ask', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt: promptText })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        removeLoadingIndicator();
+                        if (data.success) {
+                            if (data.usage && data.usage.total_tokens) {
+                                totalTokenCount += data.usage.total_tokens;
+                                telemetryTokens.textContent = totalTokenCount;
+                            }
+                            renderFormattedMessage(data.result, 'ai-msg');
+                        } else {
+                            logSystemMessage("Cluster Error: " + (data.error || 'Unknown error'));
+                        }
+                    })
+                    .catch(() => {
+                        removeLoadingIndicator();
+                        logSystemMessage("System Error: Failed to reach backend cluster node.");
+                    });
+                }
             }
         }
 
-        // Initialize Preferences, Sessions, and WebSocket
         loadPreferences();
         if (!loadSavedSessions()) {
             createNewTab('Main Cluster Session');
