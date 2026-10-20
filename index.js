@@ -26,7 +26,6 @@ const requestHeaders = {
 };
 
 // Track account cooldowns (24-hour lockout memory map)
-// Format: { accountIndex: timestampWhenCooldownExpires }
 const accountCooldowns = {};
 const COOLDOWN_DURATION_MS = 24 * 60 * 60 * 1000; // 24 Hours
 
@@ -54,24 +53,20 @@ async function callCloudflare(prompt) {
   let attempts = 0;
 
   while (attempts < accounts.length) {
-    // Find next available account that is NOT on 24-hour cooldown
     let selectedAccount = null;
 
     for (let i = 0; i < accounts.length; i++) {
       const acc = accounts[i];
-      // Check if cooldown has expired
       if (accountCooldowns[acc.index] && now > accountCooldowns[acc.index]) {
-        delete accountCooldowns[acc.index]; // Clear expired cooldown
+        delete accountCooldowns[acc.index];
       }
 
-      // If account is free of cooldown, pick it as default/next
       if (!accountCooldowns[acc.index]) {
         selectedAccount = acc;
         break;
       }
     }
 
-    // If ALL accounts are currently on 24-hour cooldown
     if (!selectedAccount) {
       throw new Error('All 10 Cloudflare account profiles are currently exhausted on 24-hour cooldown. Please wait for resets.');
     }
@@ -97,7 +92,6 @@ async function callCloudflare(prompt) {
 
       const data = await response.json();
 
-      // Check for rate limit (429) or quota/rate error messages
       if (response.status === 429 || (!data.success && JSON.stringify(data.errors).toLowerCase().includes('rate'))) {
         console.warn(`[Rate Limit] ${selectedAccount.label} hit limit. Locking out for 24 hours and rotating...`);
         accountCooldowns[selectedAccount.index] = Date.now() + COOLDOWN_DURATION_MS;
@@ -109,7 +103,6 @@ async function callCloudflare(prompt) {
         throw new Error(JSON.stringify(data.errors));
       }
 
-      // Success! Return generated response
       return data.result.response;
 
     } catch (error) {
@@ -142,12 +135,14 @@ app.post('/api/ask', async (req, res) => {
 wss.on('connection', (ws) => {
     ws.isAlive = true;
     ws.lastActivity = Date.now();
-    const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 Minutes Idle threshold to avoid token/resource cost
+    const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 Minutes Idle threshold
 
-    ws.on('pong', () => { ws.isAlive = true; });
+    ws.on('pong', () => { 
+        ws.isAlive = true; 
+    });
 
     ws.on('message', async (message) => {
-        ws.lastActivity = Date.now(); // Update activity timestamp on interaction
+        ws.lastActivity = Date.now();
         try {
             const parsed = JSON.parse(message.toString());
             const prompt = parsed.prompt;
@@ -163,7 +158,6 @@ wss.on('connection', (ws) => {
         }
     });
 
-    // Idle check interval per connection
     const idleCheck = setInterval(() => {
         if (Date.now() - ws.lastActivity > IDLE_TIMEOUT_MS) {
             ws.send(JSON.stringify({ systemInfo: 'Connection entering IDLE state due to inactivity to conserve cluster resources.' }));
@@ -175,18 +169,14 @@ wss.on('connection', (ws) => {
     });
 });
 
-// Global Heartbeat interval to keep connections alive
+// Heartbeat ping interval (Every 20s to stay well within Render's 30s timeout)
 const interval = setInterval(() => {
-    wss.clients.forEach((client) => {
-        if (client.isAlive === false) return client.terminate();
-        client.isAlive = false;
-        client.ping();
+    wss.clients.forEach((ws) => {
+        if (ws.isAlive === false) return ws.terminate();
+        ws.isAlive = false;
+        ws.ping();
     });
-}, 30000);
-
-wss.on('close', () => {
-    clearInterval(interval);
-});
+}, 20000);
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Cluster Sync Engine Backend running on port ${PORT}`));
