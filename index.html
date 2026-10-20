@@ -365,6 +365,26 @@
         .ai-msg { color: var(--text-bright); }
         .ai-msg strong { color: var(--accent-green); }
 
+        /* Collapsible details element for attached code */
+        details.file-collapse {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            margin: 6px 0;
+            padding: 6px 10px;
+        }
+
+        details.file-collapse summary {
+            cursor: pointer;
+            color: var(--accent-cyan);
+            font-size: 0.8rem;
+            outline: none;
+        }
+
+        details.file-collapse summary:hover {
+            color: var(--accent-green);
+        }
+
         /* Pure CSS Glowing Loading Spinner Node */
         .loading-node {
             display: flex;
@@ -902,7 +922,6 @@
             }
         }
 
-        // Stage files into queue and render preview chips above chatbar
         function processFiles(files) {
             Array.from(files).forEach(file => {
                 const reader = new FileReader();
@@ -1037,7 +1056,18 @@
                 } else if (msg.type === 'user') {
                     const div = document.createElement('div');
                     div.className = 'message user-msg';
-                    div.textContent = "ADMIN: " + msg.content;
+                    
+                    const prefix = document.createElement('strong');
+                    prefix.style.color = 'var(--accent-cyan)';
+                    prefix.textContent = 'ADMIN: ';
+                    div.appendChild(prefix);
+
+                    const contentDiv = document.createElement('div');
+                    contentDiv.style.display = 'inline-block';
+                    contentDiv.style.width = '100%';
+                    contentDiv.innerHTML = marked.parse(msg.content);
+                    div.appendChild(contentDiv);
+
                     terminal.appendChild(div);
                 } else if (msg.type === 'ai') {
                     const div = document.createElement('div');
@@ -1098,22 +1128,33 @@
         }
 
         function sendMessage() {
-            let promptText = chatInput.value.trim();
-            
-            // If files are staged, prepend their contents into the prompt payload
+            const userTextInput = chatInput.value.trim();
+            if (!userTextInput && stagedFiles.length === 0) return;
+
+            let fullPromptForAI = "";
+            let userDisplayMessage = "";
+
             if (stagedFiles.length > 0) {
                 let filePayloadText = "";
+                let fileSummaryText = stagedFiles.map(f => f.name).join(', ');
+
                 stagedFiles.forEach(file => {
                     filePayloadText += `Analyze and scan the following attached file contents from [${file.name}]:\n\n\`\`\`\n${file.content}\n\`\`\`\n\n`;
                 });
-                promptText = filePayloadText + promptText;
+
+                fullPromptForAI = filePayloadText + (userTextInput || "Please review attached file(s).");
+                
+                userDisplayMessage = `<details class="file-collapse"><summary>📁 Attached Files: ${fileSummaryText} (Click to toggle content)</summary><pre>${stagedFiles.map(f => `--- ${f.name} ---\n` + f.content).join('\n\n')}</pre></details>\n\n` + (userTextInput || "");
+                
                 stagedFiles = [];
                 renderFilePreviews();
+            } else {
+                fullPromptForAI = userTextInput;
+                userDisplayMessage = userTextInput;
             }
 
-            if (!promptText) return;
             chatInput.value = '';
-            dispatchAIPrompt(promptText, promptText);
+            dispatchAIPrompt(fullPromptForAI, userDisplayMessage);
         }
 
         async function dispatchAIPrompt(promptText, displayUserText) {
@@ -1121,7 +1162,7 @@
             if (!currentTab) return;
 
             if (currentTab.messages.length <= 1 && currentTab.title === 'New Session') {
-                currentTab.title = displayUserText.slice(0, 20) + '...';
+                currentTab.title = chatInput.value.slice(0, 20) || 'Attached Files Session';
                 renderTabs();
             }
 
