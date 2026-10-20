@@ -156,7 +156,7 @@
             object-fit: contain;
         }
 
-        /* Redesigned Floating Popup Menu (Non-blocking) */
+        /* Redesigned Floating Popup Menu with Preferences */
         #settings-popup {
             position: absolute;
             bottom: 65px;
@@ -169,7 +169,7 @@
             box-shadow: 0 -5px 25px rgba(0,0,0,0.8);
             display: none;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
             z-index: 200;
         }
 
@@ -202,6 +202,30 @@
 
         .close-popup:hover { color: var(--text-bright); }
 
+        .popup-section-title {
+            font-size: 0.65rem;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .pref-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            color: var(--text-bright);
+            padding: 4px 0;
+        }
+
+        .pref-item input[type="checkbox"] {
+            accent-color: var(--accent-green);
+            cursor: pointer;
+            width: 14px;
+            height: 14px;
+        }
+
         .export-btn {
             background: var(--terminal-bg);
             color: var(--accent-cyan);
@@ -214,6 +238,7 @@
             font-size: 0.75rem;
             text-align: left;
             transition: all 0.2s;
+            width: 100%;
         }
 
         .export-btn:hover {
@@ -252,6 +277,17 @@
             color: var(--accent-green);
             margin: 0;
             text-shadow: 0 0 10px rgba(0,255,102,0.3);
+        }
+
+        .telemetry-readout {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            display: flex;
+            gap: 15px;
+        }
+
+        .telemetry-readout span {
+            color: var(--accent-cyan);
         }
 
         #status {
@@ -502,13 +538,33 @@
     <div class="main-layout" id="main-layout">
         <!-- Sidebar for Chat Tabs -->
         <div class="sidebar">
-            <!-- Settings Popup Menu (Anchored in sidebar) -->
+            <!-- Settings Popup Menu with Preferences -->
             <div id="settings-popup">
                 <div class="popup-header">
-                    <h3>CONFIG</h3>
+                    <h3>CONFIG & PREFERENCES</h3>
                     <button class="close-popup" onclick="toggleSettings(false)">×</button>
                 </div>
-                <button class="export-btn" onclick="exportChatMarkdown()">📥 Export Markdown</button>
+                
+                <div class="popup-section-title">Preferences</div>
+                
+                <div class="pref-item">
+                    <span>Session Persistence</span>
+                    <input type="checkbox" id="pref-persistence" checked onchange="savePreferences()">
+                </div>
+                
+                <div class="pref-item">
+                    <span>Auto-Scroll Lock</span>
+                    <input type="checkbox" id="pref-autoscroll" checked onchange="savePreferences()">
+                </div>
+
+                <div class="pref-item">
+                    <span>Live Telemetry Readout</span>
+                    <input type="checkbox" id="pref-telemetry" checked onchange="savePreferences()">
+                </div>
+
+                <div style="border-top: 1px solid var(--border-color); margin-top: 4px; padding-top: 8px;">
+                    <button class="export-btn" onclick="exportChatMarkdown()">📥 Export Active Chat</button>
+                </div>
             </div>
 
             <div class="sidebar-top-cluster">
@@ -540,6 +596,10 @@
                     <div id="status"></div>
                     <h1>CLUSTER SYNC ENGINE AI</h1>
                 </div>
+                <div class="telemetry-readout" id="telemetry-readout">
+                    <div>PING: <span id="telemetry-ping">--ms</span></div>
+                    <div>TOKENS: <span id="telemetry-tokens">0</span></div>
+                </div>
             </div>
             
             <div class="header-box">
@@ -570,28 +630,88 @@
         const mainLayout = document.getElementById('main-layout');
         const dropOverlay = document.getElementById('drop-overlay');
         const settingsPopup = document.getElementById('settings-popup');
+        const telemetryReadout = document.getElementById('telemetry-readout');
+        const telemetryPing = document.getElementById('telemetry-ping');
+        const telemetryTokens = document.getElementById('telemetry-tokens');
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}`;
         let socket;
 
-        // Session Memory & Tabs State
+        // Session Memory & Preferences State
         let tabs = [];
         let activeTabId = null;
+        let totalTokenCount = 0;
+        let lastPingTime = Date.now();
         const MAX_RENDERED_DOM_NODES = 25;
+
+        // Load Preferences from localStorage on startup
+        let preferences = {
+            persistence: true,
+            autoscroll: true,
+            telemetry: true
+        };
+
+        function loadPreferences() {
+            const savedPrefs = localStorage.getItem('cluster_preferences');
+            if (savedPrefs) {
+                try { preferences = JSON.parse(savedPrefs); } catch(e) {}
+            }
+            document.getElementById('pref-persistence').checked = preferences.persistence;
+            document.getElementById('pref-autoscroll').checked = preferences.autoscroll;
+            document.getElementById('pref-telemetry').checked = preferences.telemetry;
+            updateTelemetryDisplay();
+        }
+
+        function savePreferences() {
+            preferences.persistence = document.getElementById('pref-persistence').checked;
+            preferences.autoscroll = document.getElementById('pref-autoscroll').checked;
+            preferences.telemetry = document.getElementById('pref-telemetry').checked;
+            localStorage.setItem('cluster_preferences', JSON.stringify(preferences));
+            updateTelemetryDisplay();
+        }
+
+        function updateTelemetryDisplay() {
+            telemetryReadout.style.display = preferences.telemetry ? 'flex' : 'none';
+        }
+
+        function loadSavedSessions() {
+            if (!preferences.persistence) return false;
+            const savedTabs = localStorage.getItem('cluster_tabs');
+            const savedActiveId = localStorage.getItem('cluster_active_id');
+            if (savedTabs) {
+                try {
+                    tabs = JSON.parse(savedTabs);
+                    if (tabs.length > 0) {
+                        activeTabId = savedActiveId && tabs.some(t => t.id === savedActiveId) ? savedActiveId : tabs[0].id;
+                        renderTabs();
+                        renderActiveTerminal();
+                        return true;
+                    }
+                } catch(e) {}
+            }
+            return false;
+        }
+
+        function saveSessions() {
+            if (!preferences.persistence) return;
+            localStorage.setItem('cluster_tabs', JSON.stringify(tabs));
+            localStorage.setItem('cluster_active_id', activeTabId);
+        }
 
         function createNewTab(title = 'New Session') {
             const tabId = 'tab_' + Date.now();
             const newTab = { id: tabId, title, messages: [] };
             tabs.push(newTab);
             setActiveTab(tabId);
-            renderTabs();
+            saveSessions();
         }
 
         function setActiveTab(tabId) {
             activeTabId = tabId;
             renderTabs();
             renderActiveTerminal();
+            saveSessions();
         }
 
         function renderTabs() {
@@ -751,9 +871,12 @@
 
         function connectWebSocket() {
             logSystemMessage('System: Establishing secure WebSocket tunnel...');
+            lastPingTime = Date.now();
             socket = new WebSocket(wsUrl);
 
             socket.onopen = () => {
+                const pingMs = Date.now() - lastPingTime;
+                telemetryPing.textContent = pingMs + 'ms';
                 logSystemMessage('System: Cluster node link established successfully.');
                 statusIndicator.classList.add('online');
                 clusterState.textContent = 'CLUSTER: ONLINE (1-10 ROTATION)';
@@ -764,6 +887,8 @@
                 try {
                     const data = JSON.parse(event.data);
                     if (data.result) {
+                        totalTokenCount += Math.round(data.result.length / 4);
+                        telemetryTokens.textContent = totalTokenCount;
                         renderFormattedMessage(data.result, 'ai-msg');
                     } else if (data.systemInfo) {
                         logSystemMessage("System Notice: " + data.systemInfo);
@@ -800,7 +925,9 @@
                 <span>[AI NODE PROCESSING STREAM...]</span>
             `;
             terminal.appendChild(div);
-            terminal.scrollTop = terminal.scrollHeight;
+            if (preferences.autoscroll) {
+                terminal.scrollTop = terminal.scrollHeight;
+            }
         }
 
         function removeLoadingIndicator() {
@@ -813,6 +940,7 @@
             if (currentTab) {
                 currentTab.messages.push({ type: 'system', content: text });
                 renderActiveTerminal();
+                saveSessions();
             }
         }
 
@@ -871,7 +999,9 @@
                 }
             });
 
-            terminal.scrollTop = terminal.scrollHeight;
+            if (preferences.autoscroll) {
+                terminal.scrollTop = terminal.scrollHeight;
+            }
         }
 
         function renderFormattedMessage(markdownText, className) {
@@ -880,6 +1010,7 @@
                 currentTab.messages.push({ type: 'ai', content: markdownText });
                 renderActiveTerminal();
                 clusterState.textContent = 'CLUSTER: ACTIVE';
+                saveSessions();
             }
         }
 
@@ -901,9 +1032,13 @@
                 renderTabs();
             }
 
+            totalTokenCount += Math.round(promptText.length / 4);
+            telemetryTokens.textContent = totalTokenCount;
+
             currentTab.messages.push({ type: 'user', content: promptText });
             renderActiveTerminal();
             chatInput.value = '';
+            saveSessions();
 
             showLoadingIndicator();
 
@@ -919,6 +1054,8 @@
                 .then(data => {
                     removeLoadingIndicator();
                     if (data.success) {
+                        totalTokenCount += Math.round(data.result.length / 4);
+                        telemetryTokens.textContent = totalTokenCount;
                         renderFormattedMessage(data.result, 'ai-msg');
                     } else {
                         logSystemMessage("Cluster Error: " + (data.error || 'Unknown error'));
@@ -931,8 +1068,11 @@
             }
         }
 
-        // Initialize default tab and WebSocket
-        createNewTab('Main Cluster Session');
+        // Initialize Preferences, Sessions, and WebSocket
+        loadPreferences();
+        if (!loadSavedSessions()) {
+            createNewTab('Main Cluster Session');
+        }
         connectWebSocket();
     </script>
 </body>
