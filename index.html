@@ -203,7 +203,7 @@
         .ai-msg { color: var(--text-bright); }
         .ai-msg strong { color: var(--accent-green); }
 
-        /* Loading Indicator Spinner */
+        /* Loading Indicator with GIF Animation */
         .loading-node {
             display: flex;
             align-items: center;
@@ -214,18 +214,10 @@
             margin-bottom: 15px;
         }
 
-        .spinner {
-            width: 14px;
-            height: 14px;
-            border: 2px solid var(--border-color);
-            border-top: 2px solid var(--accent-green);
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .loading-node img {
+            width: 22px;
+            height: 22px;
+            vertical-align: middle;
         }
 
         /* Code box formatting with COPY button */
@@ -351,7 +343,7 @@
         // Session Memory & Tabs State
         let tabs = [];
         let activeTabId = null;
-        const MAX_RENDERED_DOM_NODES = 25; // Virtual limit for rendering
+        const MAX_RENDERED_DOM_NODES = 25; // Virtual limit for rendering optimization
 
         function createNewTab(title = 'New Session') {
             const tabId = 'tab_' + Date.now();
@@ -436,7 +428,10 @@
             const div = document.createElement('div');
             div.id = 'loading-node';
             div.className = 'loading-node';
-            div.innerHTML = `<div class="spinner"></div> <span>[AI NODE PROCESSING STREAM...]</span>`;
+            div.innerHTML = `
+                <img src="assets/chatbot.gif" alt="AI Loading">
+                <span>[AI NODE PROCESSING STREAM...]</span>
+            `;
             terminal.appendChild(div);
             terminal.scrollTop = terminal.scrollHeight;
         }
@@ -459,7 +454,7 @@
             const currentTab = getActiveTab();
             if (!currentTab) return;
 
-            // DOM Pruning: Render last N messages for speed
+            // DOM Pruning: Render last N messages to optimize performance
             const visibleMessages = currentTab.messages.slice(-MAX_RENDERED_DOM_NODES);
 
             visibleMessages.forEach(msg => {
