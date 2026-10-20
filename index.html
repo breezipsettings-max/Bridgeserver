@@ -203,7 +203,7 @@
         .ai-msg { color: var(--text-bright); }
         .ai-msg strong { color: var(--accent-green); }
 
-        /* Loading Indicator with GIF Animation */
+        /* Loading Indicator with Transparent GIF Animation */
         .loading-node {
             display: flex;
             align-items: center;
@@ -215,9 +215,12 @@
         }
 
         .loading-node img {
-            width: 22px;
-            height: 22px;
+            width: 24px;
+            height: 24px;
             vertical-align: middle;
+            background: transparent;
+            border: none;
+            outline: none;
         }
 
         /* Code box formatting with COPY button */
