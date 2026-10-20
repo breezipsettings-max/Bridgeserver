@@ -904,6 +904,33 @@
             }
         });
 
+        // Global Paste Listener (Ctrl+V files / image screenshots from clipboard)
+        window.addEventListener('paste', (e) => {
+            const clipboardItems = e.clipboardData.items;
+            if (!clipboardItems) return;
+
+            let pastedFiles = [];
+            for (let i = 0; i < clipboardItems.length; i++) {
+                const item = clipboardItems[i];
+                if (item.kind === 'file') {
+                    const file = item.getAsFile();
+                    if (file) {
+                        // Give a nice name to pasted clipboard images
+                        if (file.type.startsWith('image/') && (!file.name || file.name === 'image.png')) {
+                            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                            Object.defineProperty(file, 'name', { value: `clipboard_image_${timestamp}.png` });
+                        }
+                        pastedFiles.push(file);
+                    }
+                }
+            }
+
+            if (pastedFiles.length > 0) {
+                e.preventDefault(); // Stop normal text paste if we caught files/images
+                processFiles(pastedFiles);
+            }
+        });
+
         let dragCounter = 0;
         mainLayout.addEventListener('dragenter', (e) => { e.preventDefault(); dragCounter++; dropOverlay.classList.add('active'); });
         mainLayout.addEventListener('dragleave', (e) => { e.preventDefault(); dragCounter--; if (dragCounter === 0) dropOverlay.classList.remove('active'); });
@@ -1153,7 +1180,7 @@
                 userDisplayMessage = userTextInput;
             }
 
-            chatInput.value = '';
+    chatInput.value = '';
             dispatchAIPrompt(fullPromptForAI, userDisplayMessage);
         }
 
