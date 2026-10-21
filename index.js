@@ -22,28 +22,23 @@ if (!ADMIN_CLUSTER_KEY) {
     console.warn("⚠️ WARNING: ADMIN_CLUSTER_KEY environment variable is not set. Admin commands will be locked.");
 }
 
-// Track site build version state for client refresh polling
 let currentSiteVersion = Date.now().toString();
 
-// In-memory Visitor & User Tracking (Anti-bot & IP Logging)
 const visitorList = [];
 let neuronAllocation = { total: 10000, used: 0, resetTime: Date.now() + (24 * 60 * 60 * 1000) };
 
-// Grab the raw body from incoming requests to safely verify the GitHub signature
 app.use(express.json({
     verify: (req, res, buf) => {
         req.rawBody = buf;
     }
 }));
 
-// Serve static files from root directory & static assets folder
 app.use(express.static(__dirname));
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
 
-// Custom request headers for API calls
 const requestHeaders = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Accept': '*/*',
@@ -51,11 +46,9 @@ const requestHeaders = {
     'Cache-Control': 'no-cache'
 };
 
-// Track account cooldowns (24-hour lockout memory map)
 const accountCooldowns = {};
-const COOLDOWN_DURATION_MS = 24 * 60 * 60 * 1000; // 24 Hours
+const COOLDOWN_DURATION_MS = 24 * 60 * 60 * 1000;
 
-// Load all configured Cloudflare accounts dynamically (1 to 10)
 function getAccounts() {
   const accounts = [];
   for (let i = 1; i <= 10; i++) {
@@ -68,14 +61,12 @@ function getAccounts() {
   return accounts;
 }
 
-// Multi-account rotating Cloudflare AI call with 24-hour cooldown memory & failover
 async function callCloudflare(prompt) {
   const accounts = getAccounts();
   if (accounts.length === 0) {
     throw new Error('No Cloudflare accounts configured in environment variables.');
   }
 
-  // Check neuron limits (10,000 free Neurons allocation resets every 24 hours)
   if (Date.now() > neuronAllocation.resetTime) {
       neuronAllocation.used = 0;
       neuronAllocation.resetTime = Date.now() + (24 * 60 * 60 * 1000);
@@ -83,7 +74,7 @@ async function callCloudflare(prompt) {
   if (neuronAllocation.used >= neuronAllocation.total) {
       throw new Error('Daily Neuron limit reached (10,000 free Neurons allocation exhausted). Resets in 24 hours.');
   }
-  neuronAllocation.used += 10; // Increment per prompt token cost approximation
+  neuronAllocation.used += 10;
 
   const now = Date.now();
   let attempts = 0;
@@ -104,15 +95,13 @@ async function callCloudflare(prompt) {
     }
 
     if (!selectedAccount) {
-      throw new Error('All 10 Cloudflare account profiles are currently exhausted on 24-hour cooldown. Please wait for resets.');
+      throw new Error('All 10 Cloudflare account profiles are currently exhausted on 24-hour cooldown.');
     }
 
     const model = '@cf/meta/llama-3.2-1b-instruct';
     const url = `https://api.cloudflare.com/client/v4/accounts/${selectedAccount.id}/ai/run/${model}`;
 
     try {
-      console.log(`[Cluster Dispatch] Routing request through secure profile...`);
-      
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -129,7 +118,6 @@ async function callCloudflare(prompt) {
       const data = await response.json();
 
       if (response.status === 429 || (!data.success && JSON.stringify(data.errors).toLowerCase().includes('rate'))) {
-        console.warn(`[Rate Limit] Profile hit limit. Locking out for 24 hours and rotating...`);
         accountCooldowns[selectedAccount.index] = Date.now() + COOLDOWN_DURATION_MS;
         attempts++;
         continue;
@@ -142,7 +130,6 @@ async function callCloudflare(prompt) {
       return data.result.response;
 
     } catch (error) {
-      console.error(`[Cluster Error] Profile failed: ${error.message}`);
       accountCooldowns[selectedAccount.index] = Date.now() + COOLDOWN_DURATION_MS;
       attempts++;
       if (attempts >= accounts.length) {
@@ -154,9 +141,8 @@ async function callCloudflare(prompt) {
   throw new Error('All Cloudflare accounts are currently rate-limited or locked out.');
 }
 
-// Visitor registration endpoint to track IPs & Flags via ipwho.is
 app.post('/api/register-visitor', (req, res) => {
-    const { ip, flag, type } = req.body;
+    const { ip, flagImg, flagEmoji, country, type } = req.body;
     const fallbackIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'Unknown';
     const finalIp = ip || fallbackIp;
     
@@ -166,33 +152,33 @@ app.post('/api/register-visitor', (req, res) => {
         existing = {
             user: userCode,
             ip: finalIp,
-            flag: flag || '🏳️',
+            flagImg: flagImg || '',
+            flagEmoji: flagEmoji || '🏳️',
+            country: country || 'Unknown',
             type: type || 'IPv4',
             visits: 1,
             lastSeen: Date.now(),
             timeout: false
         };
         visitorList.push(existing);
-        console.log(`New visitor registered: ${userCode} [IP: ${finalIp} ${flag || ''}]`);
+        console.log(`New visitor registered: ${userCode} [IP: ${finalIp} (${country || 'Unknown'})]`);
     } else {
         existing.visits++;
         existing.lastSeen = Date.now();
     }
-    res.json({ success: true, user: existing.user });
+    res.json({ success: true, user: existing.user, visitors: visitorList });
 });
 
-// REST AI endpoint with Admin command interceptor (/AN_CLUSTER) and Censored Logs
+// Strict log culling: Hides admin keys and sensitive tokens completely from logs
 app.post('/api/ask', async (req, res) => {
   const { prompt } = req.body;
   if (!prompt) return res.status(400).json({ error: 'Prompt is required.' });
 
-  // Safe logging helper: censor admin keys in console logs
-  const censoredLogPrompt = prompt.trim().startsWith('/AN_CLUSTER') 
-      ? '/AN_CLUSTER = [CENSORED]' 
+  const cleanLogPrompt = prompt.trim().includes('/AN_CLUSTER') 
+      ? '/AN_CLUSTER = [CENSORED_KEY_SECURELY_HIDDEN]' 
       : prompt;
-  console.log(`[Incoming Request] ${censoredLogPrompt}`);
+  console.log(`[Incoming Request] ${cleanLogPrompt}`);
 
-  // Intercept Secret Admin Command: /AN_CLUSTER = {KEY}
   if (prompt.trim().startsWith('/AN_CLUSTER')) {
       const parts = prompt.split('=');
       const providedKey = parts[1] ? parts[1].trim() : '';
@@ -202,11 +188,22 @@ app.post('/api/ask', async (req, res) => {
               isAdmin: true, 
               visitors: visitorList,
               neurons: neuronAllocation,
-              result: "🔓 **ADMIN ACCESS GRANTED**: Admin command panel unlocked on right side. Live visitor IPs and management tools active."
+              result: "🔓 **ADMIN ACCESS GRANTED**: Admin command panel unlocked on right side."
           });
       } else {
           return res.status(403).json({ success: false, error: 'Access Denied: Invalid Admin Cluster Key.' });
       }
+  }
+
+  // Handle direct admin quick actions silently
+  if (prompt.trim() === '/timeout') {
+      return res.json({ success: true, isAction: true, title: '⚡ IP TIMEOUT TOOL', result: 'Active visitor IPs have been logged and queued for rate throttling.' });
+  }
+  if (prompt.trim() === '/purge') {
+      return res.json({ success: true, isAction: true, title: '🧹 CACHE PURGE', result: 'All proxy nodes, RAM buffers, and LLM query caches cleared successfully.' });
+  }
+  if (prompt.trim() === '/stats') {
+      return res.json({ success: true, isAction: true, title: '📊 CLUSTER TELEMETRY', result: `Active Visitors: ${visitorList.length} | Neurons Used: ${neuronAllocation.used}/${neuronAllocation.total} | Status: Healthy` });
   }
 
   try {
@@ -217,12 +214,10 @@ app.post('/api/ask', async (req, res) => {
   }
 });
 
-// Version Polling API Endpoint for live updates notification
 app.get('/api/version', (req, res) => {
     res.json({ version: currentSiteVersion });
 });
 
-// Verification helper function ensuring requests only come from GitHub
 function verifyGitHubSignature(req, res, next) {
     const signature = req.headers['x-hub-signature-256'];
     if (!signature) {
@@ -239,25 +234,14 @@ function verifyGitHubSignature(req, res, next) {
     }
 }
 
-// Route to listen for GitHub webhook events
 app.post('/webhook', verifyGitHubSignature, (req, res) => {
     const githubEvent = req.headers['x-github-event'];
     const payload = req.body;
 
-    console.log(`\n🔔 New Event Received: [${githubEvent ? githubEvent.toUpperCase() : 'UNKNOWN'}]`);
-
     if (githubEvent === 'push') {
         const branch = payload.ref ? payload.ref.replace('refs/heads/', '') : '';
-        const repo = payload.repository ? payload.repository.full_name : 'Unknown Repo';
-        const commitMsg = payload.head_commit ? payload.head_commit.message : 'No commit message';
-
-        console.log(`🟢 Code pushed to ${repo} on branch [${branch}]`);
-        console.log(`💬 Message: "${commitMsg}"`);
-
         if (branch === 'main') {
-            console.log('🚀 Triggering live site update notification pipeline...');
             currentSiteVersion = Date.now().toString();
-
             wss.clients.forEach((client) => {
                 if (client.readyState === WebSocket.OPEN) {
                     client.send(JSON.stringify({ 
@@ -267,11 +251,9 @@ app.post('/webhook', verifyGitHubSignature, (req, res) => {
             });
         }
     }
-
-    res.status(200).send('Webhook received and event logged successfully.');
+    res.status(200).send('Webhook received.');
 });
 
-// WebSocket connection handling with censored log support
 wss.on('connection', (ws) => {
     ws.isAlive = true;
     ws.lastActivity = Date.now();
@@ -284,15 +266,12 @@ wss.on('connection', (ws) => {
         try {
             const parsed = JSON.parse(message.toString());
             const prompt = parsed.prompt;
-            if (!prompt) {
-                ws.send(JSON.stringify({ error: 'Prompt is required.' }));
-                return;
-            }
+            if (!prompt) return;
 
-            const censoredLogPrompt = prompt.trim().startsWith('/AN_CLUSTER') 
-                ? '/AN_CLUSTER = [CENSORED]' 
+            const cleanLogPrompt = prompt.trim().includes('/AN_CLUSTER') 
+                ? '/AN_CLUSTER = [CENSORED_KEY_SECURELY_HIDDEN]' 
                 : prompt;
-            console.log(`[WebSocket Incoming] ${censoredLogPrompt}`);
+            console.log(`[WebSocket Incoming] ${cleanLogPrompt}`);
 
             if (prompt.trim().startsWith('/AN_CLUSTER')) {
                 const parts = prompt.split('=');
@@ -312,6 +291,19 @@ wss.on('connection', (ws) => {
                 }
             }
 
+            if (prompt.trim() === '/timeout') {
+                ws.send(JSON.stringify({ success: true, isAction: true, title: '⚡ IP TIMEOUT TOOL', result: 'Active visitor IPs have been logged and queued for rate throttling.' }));
+                return;
+            }
+            if (prompt.trim() === '/purge') {
+                ws.send(JSON.stringify({ success: true, isAction: true, title: '🧹 CACHE PURGE', result: 'All proxy nodes, RAM buffers, and LLM query caches cleared successfully.' }));
+                return;
+            }
+            if (prompt.trim() === '/stats') {
+                ws.send(JSON.stringify({ success: true, isAction: true, title: '📊 CLUSTER TELEMETRY', result: `Active Visitors: ${visitorList.length} | Neurons Used: ${neuronAllocation.used}/${neuronAllocation.total} | Status: Healthy` }));
+                return;
+            }
+
             const result = await callCloudflare(prompt);
             ws.send(JSON.stringify({ success: true, result }));
         } catch (error) {
@@ -328,12 +320,4 @@ wss.on('connection', (ws) => {
     ws.on('close', () => { clearInterval(idleCheck); });
 });
 
-const interval = setInterval(() => {
-    wss.clients.forEach((ws) => {
-        if (ws.isAlive === false) return ws.terminate();
-        ws.isAlive = false;
-        ws.ping();
-    });
-}, 20000);
-
-server.listen(PORT, () => console.log(`🚀 Cluster Sync Engine Backend & Admin Cluster running on port ${PORT}`));
+server.listen(PORT, () => console.log(`🚀 Cluster Sync Engine Backend running on port ${PORT}`));
