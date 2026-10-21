@@ -29,8 +29,9 @@ let currentSiteVersion = Date.now().toString();
 const visitorList = [];
 let neuronAllocation = { total: 10000, used: 140, resetTime: Date.now() + (24 * 60 * 60 * 1000) };
 
-// Grab the raw body from incoming requests to safely verify the GitHub signature
+// Grab the raw body from incoming requests to safely verify the GitHub signature (with 10mb payload limit to prevent size truncation issues)
 app.use(express.json({
+    limit: '10mb',
     verify: (req, res, buf) => {
         req.rawBody = buf;
     }
@@ -68,6 +69,16 @@ function getAccounts() {
   return accounts;
 }
 
+// Safely sanitize and truncate prompts to prevent Cloudflare AI 60,000 token context limit crashes
+function sanitizeAndTruncatePrompt(prompt) {
+  const MAX_CHAR_LIMIT = 16000; // ~4000 tokens safety cap
+  if (prompt.length > MAX_CHAR_LIMIT) {
+    console.warn(`[Prompt Safeguard] Prompt length (${prompt.length} chars) exceeds safety cap. Truncating...`);
+    return prompt.substring(0, MAX_CHAR_LIMIT) + "\n\n[SYSTEM NOTICE: Payload truncated to prevent context window overflow]";
+  }
+  return prompt;
+}
+
 // Multi-account rotating Cloudflare AI call with 24-hour cooldown memory & failover
 async function callCloudflare(prompt) {
   const accounts = getAccounts();
@@ -85,6 +96,7 @@ async function callCloudflare(prompt) {
   }
   neuronAllocation.used += 15; // Increment per prompt token cost approximation
 
+  const safePrompt = sanitizeAndTruncatePrompt(prompt);
   const now = Date.now();
   let attempts = 0;
 
@@ -121,7 +133,7 @@ async function callCloudflare(prompt) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          messages: [{ role: 'user', content: prompt }],
+          messages: [{ role: 'user', content: safePrompt }],
           max_tokens: 300,
         }),
       });
@@ -136,13 +148,21 @@ async function callCloudflare(prompt) {
       }
 
       if (!data.success) {
-        throw new Error(JSON.stringify(data.errors));
+        const errorMsg = JSON.stringify(data.errors);
+        // Do not put account on 24h cooldown for context window errors
+        if (errorMsg.includes('5021') || errorMsg.includes('context window limit')) {
+           throw new Error("Payload error: Input text/attachment exceeds model context limit.");
+        }
+        throw new Error(errorMsg);
       }
 
       return data.result.response;
 
     } catch (error) {
       console.error(`[Cluster Error] Profile failed: ${error.message}`);
+      if (error.message.includes('context window limit') || error.message.includes('Payload error')) {
+        throw error;
+      }
       accountCooldowns[selectedAccount.index] = Date.now() + COOLDOWN_DURATION_MS;
       attempts++;
       if (attempts >= accounts.length) {
