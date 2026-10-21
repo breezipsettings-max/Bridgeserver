@@ -54,6 +54,45 @@
             overflow: hidden;
         }
 
+        /* Top Yellow/Green Update Notification Banner */
+        #update-banner {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(90deg, #ffaa00, #00ff66);
+            color: #000;
+            font-weight: bold;
+            font-size: 0.8rem;
+            padding: 8px 16px;
+            text-align: center;
+            z-index: 300;
+            box-shadow: 0 2px 10px rgba(0,255,102,0.3);
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        #update-banner.active {
+            display: flex;
+        }
+
+        #update-banner button {
+            background: #000;
+            color: #00ff66;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        #update-banner button:hover {
+            background: #111;
+            color: #fff;
+        }
+
         /* Left Sidebar for Tabs & Settings */
         .sidebar {
             width: var(--sidebar-width);
@@ -329,40 +368,6 @@
         .header-box span { color: var(--accent-cyan); }
         #cluster-state { color: var(--accent-green); font-weight: bold; }
 
-        /* Video Lock Bar Widget */
-        .video-lock-bar {
-            background: rgba(0, 229, 255, 0.05);
-            border: 1px solid rgba(0, 229, 255, 0.2);
-            border-radius: 6px;
-            padding: 8px 12px;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            font-size: 0.75rem;
-        }
-
-        .lock-status-badge {
-            background: var(--accent-green);
-            color: #000;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-weight: bold;
-            font-size: 0.7rem;
-            letter-spacing: 0.5px;
-        }
-
-        .lock-status-badge.warning {
-            background: var(--accent-amber);
-            color: #000;
-        }
-
-        .lock-timer {
-            font-family: monospace;
-            color: var(--accent-cyan);
-            font-weight: bold;
-        }
-
         #terminal {
             flex: 1;
             background: var(--terminal-bg);
@@ -388,6 +393,15 @@
         }
 
         .system { color: var(--text-dim); font-style: italic; }
+        .system-update {
+            color: var(--accent-amber);
+            font-weight: bold;
+            background: rgba(255, 170, 0, 0.1);
+            padding: 6px 10px;
+            border-left: 3px solid var(--accent-amber);
+            margin-bottom: 12px;
+            border-radius: 0 4px 4px 0;
+        }
         .user-msg { color: var(--accent-cyan); font-weight: 600; }
         .ai-msg { color: var(--text-bright); }
         .ai-msg strong { color: var(--accent-green); }
@@ -645,6 +659,12 @@
 </head>
 <body>
     <div class="main-layout" id="main-layout">
+        <!-- Live Webhook Update Banner -->
+        <div id="update-banner">
+            <span>⚠️ System Notice: Site is being Updated! Please refresh to apply the Updated Version!</span>
+            <button onclick="window.location.reload()">REFRESH NOW</button>
+        </div>
+
         <!-- Sidebar for Chat Tabs -->
         <div class="sidebar">
             <div id="settings-popup">
@@ -687,11 +707,6 @@
                     <input type="checkbox" id="pref-telemetry" checked onchange="savePreferences()">
                 </div>
 
-                <div class="pref-item">
-                    <span>Strict 5-Min Video Lock</span>
-                    <input type="checkbox" id="pref-video-lock" checked onchange="savePreferences()">
-                </div>
-
                 <div style="border-top: 1px solid var(--border-color); margin-top: 4px; padding-top: 8px;">
                     <button class="export-btn" onclick="exportChatMarkdown()">📥 Export Active Chat</button>
                 </div>
@@ -705,7 +720,6 @@
             </div>
             <div class="sidebar-bottom">
                 <button class="settings-btn" onclick="toggleSettings()" title="Settings">
-                    <img src="assets/Settings.png" alt="Settings" style="width: 18px; height: 18px;" onerror="this.style.display='none'">
                     <span>SETTINGS</span>
                 </button>
             </div>
@@ -716,7 +730,7 @@
             <div id="drop-overlay">
                 <div class="drop-circle-box">
                     <h3>[ DROP FILES HERE ]</h3>
-                    <p>Release to scan and queue files for AI transmission</p>
+                    <p>Release to scan and queue files or videos for AI transmission</p>
                 </div>
             </div>
 
@@ -740,33 +754,24 @@
                 <div id="cluster-state">CLUSTER: ACTIVE</div>
             </div>
 
-            <!-- Video Lock Target Bar -->
-            <div class="video-lock-bar" id="video-lock-bar">
-                <div>
-                    <strong>DURATION TARGET:</strong> <span>3 - 5 MINUTES (5 MIN LOCK)</span>
-                </div>
-                <div>
-                    <span class="lock-status-badge" id="lock-status-badge">LOCK: ACTIVE (5m 00s)</span>
-                </div>
-                <div>
-                    AUTO-ADAPT ADAPTER: <span class="lock-timer" id="adapter-mode-label">DRIFT RE-SEGMENT ENFORCED</span>
-                </div>
-            </div>
-
             <div id="terminal"></div>
             
             <!-- Input Wrapper with Staged File Preview Bar -->
             <div class="input-wrapper">
                 <div id="file-preview-container"></div>
                 <div class="input-cluster">
-                    <input type="file" id="file-selector" multiple onchange="handleFileSelect(event)">
-                    <button class="plus-btn" onclick="document.getElementById('file-selector').click()" title="Upload Files">+</button>
-                    <input type="text" id="chat-input" placeholder="Type prompt or video sync script..." onkeypress="handleKey(event)">
+                    <input type="file" id="file-selector" multiple accept="image/*,video/*,.txt,.md,.js,.json,.html,.css,.py" onchange="handleFileSelect(event)">
+                    <button class="plus-btn" onclick="document.getElementById('file-selector').click()" title="Upload Files or Video">+</button>
+                    <input type="text" id="chat-input" placeholder="Type prompt or code request..." onkeypress="handleKey(event)">
                     <button class="send-btn" onclick="sendMessage()">TRANSMIT</button>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Hidden Video & Canvas Processing Nodes -->
+    <video id="video-processor" style="display:none;" muted playsinline></video>
+    <canvas id="canvas-processor" style="display:none;"></canvas>
 
     <script>
         const terminal = document.getElementById('terminal');
@@ -784,7 +789,11 @@
         const puterModelSelect = document.getElementById('puter-model-select');
         const archProviderLabel = document.getElementById('arch-provider');
         const filePreviewContainer = document.getElementById('file-preview-container');
-        const lockStatusBadge = document.getElementById('lock-status-badge');
+        const updateBanner = document.getElementById('update-banner');
+
+        const videoProcessor = document.getElementById('video-processor');
+        const canvasProcessor = document.getElementById('canvas-processor');
+        const ctxProcessor = canvasProcessor.getContext('2d');
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}`;
@@ -795,13 +804,13 @@
         let totalTokenCount = 0;
         let lastPingTime = Date.now();
         let stagedFiles = [];
+        let currentBuildVersion = null;
         const MAX_RENDERED_DOM_NODES = 25;
 
         let preferences = {
             persistence: true,
             autoscroll: true,
             telemetry: true,
-            videoLock: true,
             provider: 'cloudflare',
             puterModel: 'gpt-5.6-luna'
         };
@@ -814,7 +823,6 @@
             document.getElementById('pref-persistence').checked = preferences.persistence;
             document.getElementById('pref-autoscroll').checked = preferences.autoscroll;
             document.getElementById('pref-telemetry').checked = preferences.telemetry;
-            document.getElementById('pref-video-lock').checked = preferences.videoLock;
             if (preferences.provider) aiProviderSelect.value = preferences.provider;
             if (preferences.puterModel) puterModelSelect.value = preferences.puterModel;
             updateTelemetryDisplay();
@@ -824,7 +832,6 @@
             preferences.persistence = document.getElementById('pref-persistence').checked;
             preferences.autoscroll = document.getElementById('pref-autoscroll').checked;
             preferences.telemetry = document.getElementById('pref-telemetry').checked;
-            preferences.videoLock = document.getElementById('pref-video-lock').checked;
             preferences.provider = aiProviderSelect.value;
             preferences.puterModel = puterModelSelect.value;
             localStorage.setItem('cluster_preferences', JSON.stringify(preferences));
@@ -834,15 +841,36 @@
         function updateTelemetryDisplay() {
             telemetryReadout.style.display = preferences.telemetry ? 'flex' : 'none';
             archProviderLabel.textContent = preferences.provider === 'cloudflare' ? 'Cloudflare AI Cluster' : `Puter AI (${preferences.puterModel})`;
-            
-            if (preferences.videoLock) {
-                lockStatusBadge.className = 'lock-status-badge';
-                lockStatusBadge.textContent = 'LOCK: ACTIVE (5m 00s)';
-            } else {
-                lockStatusBadge.className = 'lock-status-badge warning';
-                lockStatusBadge.textContent = 'LOCK: UNBOUND';
+        }
+
+        /* Check version endpoint for live updates */
+        async function checkSiteVersion() {
+            try {
+                const res = await fetch('/api/version');
+                const data = await res.json();
+                if (currentBuildVersion === null) {
+                    currentBuildVersion = data.version;
+                } else if (data.version !== currentBuildVersion) {
+                    triggerUpdateNotice();
+                }
+            } catch(e) {}
+        }
+
+        function triggerUpdateNotice() {
+            updateBanner.classList.add('active');
+            logUpdateNotice("System Notice: Site is being Updated! Please refresh to apply the Updated Version!");
+        }
+
+        function logUpdateNotice(text) {
+            const currentTab = getActiveTab();
+            if (currentTab) {
+                currentTab.messages.push({ type: 'update-notice', content: text });
+                renderActiveTerminal();
+                saveSessions();
             }
         }
+
+        setInterval(checkSiteVersion, 10000);
 
         function loadSavedSessions() {
             if (!preferences.persistence) return false;
@@ -993,24 +1021,90 @@
             }
         }
 
-        function processFiles(files) {
-            Array.from(files).forEach(file => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    stagedFiles.push({
-                        name: file.name,
-                        size: (file.size / 1024).toFixed(1) + ' KB',
-                        content: e.target.result
-                    });
-                    renderFilePreviews();
-                };
+        async function processFiles(files) {
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
 
-                if (file.type.startsWith('image/')) {
+                if (file.type.startsWith('video/')) {
+                    await processVideoFile(file);
+                } else if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        stagedFiles.push({
+                            name: file.name,
+                            size: (file.size / 1024).toFixed(1) + ' KB',
+                            content: e.target.result,
+                            type: 'image'
+                        });
+                        renderFilePreviews();
+                    };
                     reader.readAsDataURL(file);
                 } else {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        stagedFiles.push({
+                            name: file.name,
+                            size: (file.size / 1024).toFixed(1) + ' KB',
+                            content: e.target.result,
+                            type: 'text'
+                        });
+                        renderFilePreviews();
+                    };
                     reader.readAsText(file);
                 }
+            }
+        }
+
+        /* 3-5 MINUTE HARD LOCK FOR VIDEO FILES ONLY */
+        async function processVideoFile(file) {
+            logSystemMessage(`System: Processing video file [${file.name}] under 3-5 Minute Lock rule...`);
+            const objectUrl = URL.createObjectURL(file);
+            videoProcessor.src = objectUrl;
+
+            await new Promise((resolve, reject) => {
+                videoProcessor.onloadedmetadata = () => resolve();
+                videoProcessor.onerror = (err) => reject(err);
             });
+
+            // Cap strictly to 300s (5 Minutes max lock)
+            const MAX_ALLOWED_SECONDS = 300; // 5 Minutes
+            const rawDuration = videoProcessor.duration;
+            const isLateOrOver = rawDuration > MAX_ALLOWED_SECONDS;
+            const duration = Math.min(rawDuration, MAX_ALLOWED_SECONDS);
+            
+            const frames = [];
+            const canvasWidth = 640;
+            const canvasHeight = (videoProcessor.videoHeight / videoProcessor.videoWidth) * 640 || 360;
+            canvasProcessor.width = canvasWidth;
+            canvasProcessor.height = canvasHeight;
+
+            // Extract 1 frame every 3 seconds across the 5 minute window
+            for (let t = 0; t <= duration; t += 3) {
+                videoProcessor.currentTime = t;
+                await new Promise((resolve) => {
+                    videoProcessor.onseeked = () => resolve();
+                });
+                ctxProcessor.drawImage(videoProcessor, 0, 0, canvasWidth, canvasHeight);
+                frames.push(canvasProcessor.toDataURL('image/jpeg', 0.6));
+            }
+
+            URL.revokeObjectURL(objectUrl);
+
+            let breakdownNotice = "";
+            if (isLateOrOver) {
+                breakdownNotice = ` [Note: Original video length was ${Math.round(rawDuration)}s (~1 min late/overflow). Bot automatically broke down and capped it to 5:00 max lock]`;
+            }
+
+            stagedFiles.push({
+                name: file.name,
+                size: (file.size / (1024 * 1024)).toFixed(1) + ' MB',
+                content: `Video File "${file.name}" processed under 5-minute lock limit. Total frames: ${frames.length}.${breakdownNotice}`,
+                frames: frames,
+                type: 'video'
+            });
+
+            logSystemMessage(`System: Successfully processed [${file.name}] (${frames.length} frames locked to 5 mins max). Ready for AI analysis.`);
+            renderFilePreviews();
         }
 
         function renderFilePreviews() {
@@ -1020,8 +1114,11 @@
                 stagedFiles.forEach((file, index) => {
                     const chip = document.createElement('div');
                     chip.className = 'file-chip';
+                    let icon = '📄';
+                    if (file.type === 'image') icon = '🖼️';
+                    if (file.type === 'video') icon = '🎬';
                     chip.innerHTML = `
-                        <span>📄 ${file.name} (${file.size})</span>
+                        <span>${icon} ${file.name} (${file.size})</span>
                         <button onclick="removeStagedFile(${index})" title="Remove file">×</button>
                     `;
                     filePreviewContainer.appendChild(chip);
@@ -1089,7 +1186,7 @@
             div.className = 'loading-node';
             div.innerHTML = `
                 <div class="spinner-dot"></div>
-                <span>[AI NODE PROCESSING & BREAKING DOWN STREAM FOR 5-MIN LOCK...]</span>
+                <span>[AI NODE PROCESSING MEDIA STREAM...]</span>
             `;
             terminal.appendChild(div);
             if (preferences.autoscroll) {
@@ -1122,6 +1219,11 @@
                 if (msg.type === 'system') {
                     const div = document.createElement('div');
                     div.className = 'message system';
+                    div.textContent = msg.content;
+                    terminal.appendChild(div);
+                } else if (msg.type === 'update-notice') {
+                    const div = document.createElement('div');
+                    div.className = 'message system-update';
                     div.textContent = msg.content;
                     terminal.appendChild(div);
                 } else if (msg.type === 'user') {
@@ -1210,22 +1312,21 @@
                 let fileSummaryText = stagedFiles.map(f => f.name).join(', ');
 
                 stagedFiles.forEach(file => {
-                    filePayloadText += `Analyze and scan the following attached file contents from [${file.name}]:\n\n\`\`\`\n${file.content}\n\`\`\`\n\n`;
+                    if (file.type === 'video') {
+                        filePayloadText += `[VIDEO FILE ATTACHMENT]: ${file.name}\n${file.content}\n`;
+                    } else {
+                        filePayloadText += `Analyze and scan attached file contents from [${file.name}]:\n\n\`\`\`\n${file.content}\n\`\`\`\n\n`;
+                    }
                 });
 
-                fullPromptForAI = filePayloadText + (userTextInput || "Please review attached file(s).");
-                userDisplayMessage = `<details class="file-collapse"><summary>📁 Attached Files: ${fileSummaryText} (Click to toggle content)</summary><pre>${stagedFiles.map(f => `--- ${f.name} ---\n` + f.content).join('\n\n')}</pre></details>\n\n` + (userTextInput || "");
+                fullPromptForAI = filePayloadText + (userTextInput || "Please review attached file(s) or video.");
+                userDisplayMessage = `<details class="file-collapse"><summary>📁 Attached Files/Videos: ${fileSummaryText} (Click to toggle content)</summary><pre>${stagedFiles.map(f => `--- ${f.name} ---\n` + f.content).join('\n\n')}</pre></details>\n\n` + (userTextInput || "");
                 
                 stagedFiles = [];
                 renderFilePreviews();
             } else {
                 fullPromptForAI = userTextInput;
                 userDisplayMessage = userTextInput;
-            }
-
-            // Append Video Duration Rule Constraints if Video Lock Preference is enabled
-            if (preferences.videoLock) {
-                fullPromptForAI += "\n\n[SYSTEM DURATION DIRECTIVE]: Ensure any generated scripts, breakdowns, timeline markers, or media output strictly fit the target window of 3 to 5 Minutes (with 5 Minutes locked as maximum length). If input content exceeds 5 minutes or is ~1 minute late/over, automatically break it down and re-segment into modular compatible 5-minute chunks with exact timestamps.";
             }
 
             chatInput.value = '';
@@ -1237,7 +1338,7 @@
             if (!currentTab) return;
 
             if (currentTab.messages.length <= 1 && currentTab.title === 'New Session') {
-                currentTab.title = chatInput.value.slice(0, 20) || 'Video Sync Session';
+                currentTab.title = chatInput.value.slice(0, 20) || 'Media Session';
                 renderTabs();
             }
 
