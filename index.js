@@ -188,7 +188,7 @@ app.post('/api/timeout-user', (req, res) => {
     const { user } = req.body;
     const target = visitorList.find(v => v.user === user);
     if (target) {
-        target.timeout = !target.timeout; // Toggle timeout status
+        target.timeout = !target.timeout;
         neuronAllocation.used += 5;
         console.log(`[Admin Action] User ${user} timeout status changed to: ${target.timeout}`);
         return res.json({ success: true, visitors: visitorList, neurons: neuronAllocation, message: `User ${user} has been ${target.timeout ? 'timed out/throttled' : 'restored'}.` });
