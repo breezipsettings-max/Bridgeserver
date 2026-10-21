@@ -154,25 +154,26 @@ async function callCloudflare(prompt) {
   throw new Error('All Cloudflare accounts are currently rate-limited or locked out.');
 }
 
-// Visitor registration endpoint to track IPs (IPv4 & IPv6 via ipify)
+// Visitor registration endpoint to track IPs & Flags via ipwho.is
 app.post('/api/register-visitor', (req, res) => {
-    const { ipv4, ipv6 } = req.body;
+    const { ip, flag, type } = req.body;
     const fallbackIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'Unknown';
+    const finalIp = ip || fallbackIp;
     
-    let existing = visitorList.find(v => v.ipv4 === ipv4 || v.ipv6 === ipv6 || v.fallbackIp === fallbackIp);
+    let existing = visitorList.find(v => v.ip === finalIp);
     if (!existing) {
         const userCode = `USER#${visitorList.length + 1}`;
         existing = {
             user: userCode,
-            ipv4: ipv4 || 'N/A',
-            ipv6: ipv6 || 'N/A',
-            fallbackIp: fallbackIp,
+            ip: finalIp,
+            flag: flag || '🏳️',
+            type: type || 'IPv4',
             visits: 1,
             lastSeen: Date.now(),
             timeout: false
         };
         visitorList.push(existing);
-        console.log(`New visitor registered: ${userCode} [IPv4: ${existing.ipv4} | IPv6: ${existing.ipv6}]`);
+        console.log(`New visitor registered: ${userCode} [IP: ${finalIp} ${flag || ''}]`);
     } else {
         existing.visits++;
         existing.lastSeen = Date.now();
@@ -180,10 +181,16 @@ app.post('/api/register-visitor', (req, res) => {
     res.json({ success: true, user: existing.user });
 });
 
-// REST AI endpoint with Admin command interceptor (/AN_CLUSTER)
+// REST AI endpoint with Admin command interceptor (/AN_CLUSTER) and Censored Logs
 app.post('/api/ask', async (req, res) => {
   const { prompt } = req.body;
   if (!prompt) return res.status(400).json({ error: 'Prompt is required.' });
+
+  // Safe logging helper: censor admin keys in console logs
+  const censoredLogPrompt = prompt.trim().startsWith('/AN_CLUSTER') 
+      ? '/AN_CLUSTER = [CENSORED]' 
+      : prompt;
+  console.log(`[Incoming Request] ${censoredLogPrompt}`);
 
   // Intercept Secret Admin Command: /AN_CLUSTER = {KEY}
   if (prompt.trim().startsWith('/AN_CLUSTER')) {
@@ -264,7 +271,7 @@ app.post('/webhook', verifyGitHubSignature, (req, res) => {
     res.status(200).send('Webhook received and event logged successfully.');
 });
 
-// WebSocket connection handling
+// WebSocket connection handling with censored log support
 wss.on('connection', (ws) => {
     ws.isAlive = true;
     ws.lastActivity = Date.now();
@@ -281,6 +288,11 @@ wss.on('connection', (ws) => {
                 ws.send(JSON.stringify({ error: 'Prompt is required.' }));
                 return;
             }
+
+            const censoredLogPrompt = prompt.trim().startsWith('/AN_CLUSTER') 
+                ? '/AN_CLUSTER = [CENSORED]' 
+                : prompt;
+            console.log(`[WebSocket Incoming] ${censoredLogPrompt}`);
 
             if (prompt.trim().startsWith('/AN_CLUSTER')) {
                 const parts = prompt.split('=');
