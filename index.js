@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET || "your_shared_secret";
+const WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET || "";
 
 // Track site build version state for client refresh polling
 let currentSiteVersion = Date.now().toString();
