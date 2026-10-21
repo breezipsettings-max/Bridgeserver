@@ -386,13 +386,83 @@
 
         .visitor-table th, .visitor-table td {
             border: 1px solid var(--border-color);
-            padding: 4px 6px;
+            padding: 5px 6px;
             text-align: left;
+            vertical-align: middle;
         }
 
         .visitor-table th {
             color: var(--accent-cyan);
             background: var(--terminal-bg);
+        }
+
+        /* SVG Country Flag Image Styling */
+        .flag-icon {
+            width: 18px;
+            height: 13px;
+            object-fit: cover;
+            border-radius: 2px;
+            margin-left: 4px;
+            vertical-align: middle;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* Isolated Admin Popover Modal */
+        #admin-modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(4, 6, 9, 0.8);
+            backdrop-filter: blur(3px);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #admin-modal-overlay.active { display: flex; }
+
+        .admin-modal-box {
+            width: 420px;
+            background: #0f1319;
+            border: 1px solid var(--accent-green);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 0 30px rgba(0,255,102,0.2);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .admin-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+            color: var(--accent-green);
+            font-weight: bold;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+        }
+
+        .admin-modal-body {
+            font-size: 0.8rem;
+            color: var(--text-bright);
+            line-height: 1.5;
+            padding: 10px 0;
+        }
+
+        .admin-modal-close {
+            background: var(--accent-green);
+            color: #000;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            font-family: inherit;
+            align-self: flex-end;
+            font-size: 0.75rem;
         }
 
         .header {
@@ -696,7 +766,6 @@
             width: 100%;
             height: 100%;
             background: rgba(8, 10, 15, 0.85);
-            backdrop-init: blur(4px);
             z-index: 100;
             display: none;
             justify-content: center;
@@ -718,29 +787,9 @@
             align-items: center;
             justify-content: center;
             text-align: center;
-            box-shadow: 0 0 30px rgba(0,255,102,0.2);
-            animation: pulse-ring 2s infinite;
             background: rgba(4, 6, 9, 0.7);
             color: var(--accent-green);
             padding: 20px;
-        }
-
-        .drop-circle-box h3 {
-            margin: 0 0 8px 0;
-            font-size: 1rem;
-            letter-spacing: 1px;
-        }
-
-        .drop-circle-box p {
-            margin: 0;
-            font-size: 0.75rem;
-            color: var(--text-dim);
-        }
-
-        @keyframes pulse-ring {
-            0% { box-shadow: 0 0 0 0 rgba(0, 255, 102, 0.3); }
-            70% { box-shadow: 0 0 0 25px rgba(0, 255, 102, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(0, 255, 102, 0); }
         }
 
         #file-selector {
@@ -749,6 +798,20 @@
     </style>
 </head>
 <body>
+    <!-- Isolated Admin Popover Modal -->
+    <div id="admin-modal-overlay">
+        <div class="admin-modal-box">
+            <div class="admin-modal-header">
+                <span id="admin-modal-title">ADMIN TOOL EXECUTION</span>
+                <button class="close-popup" onclick="closeAdminModal()">×</button>
+            </div>
+            <div class="admin-modal-body" id="admin-modal-content">
+                Processing isolated action...
+            </div>
+            <button class="admin-modal-close" onclick="closeAdminModal()">CLOSE WINDOW</button>
+        </div>
+    </div>
+
     <div class="main-layout" id="main-layout">
         <!-- Live Webhook Update Banner -->
         <div id="update-banner">
@@ -874,10 +937,10 @@
             </div>
 
             <div class="admin-section">
-                <label>Clickable Admin Tools</label>
-                <button class="admin-command-btn" onclick="executeAdminAction('/timeout')">⚡ /timeout (Throttle Active IP)</button>
-                <button class="admin-command-btn" onclick="executeAdminAction('/purge')">🧹 /purge (Clear Bot Cache)</button>
-                <button class="admin-command-btn" onclick="executeAdminAction('/stats')">📊 /stats (Cluster Telemetry)</button>
+                <label>Clickable Admin Tools (Isolated Modal)</label>
+                <button class="admin-command-btn" onclick="executeIsolatedAdminAction('/timeout', '⚡ IP TIMEOUT TOOL')">⚡ /timeout (Throttle Active IP)</button>
+                <button class="admin-command-btn" onclick="executeIsolatedAdminAction('/purge', '🧹 CACHE PURGE')">🧹 /purge (Clear Bot Cache)</button>
+                <button class="admin-command-btn" onclick="executeIsolatedAdminAction('/stats', '📊 CLUSTER TELEMETRY')">📊 /stats (Cluster Telemetry)</button>
             </div>
 
             <div class="admin-section">
@@ -924,6 +987,9 @@
         const adminSidebarRight = document.getElementById('admin-sidebar-right');
         const visitorTableBody = document.getElementById('visitor-table-body');
         const neuronStatus = document.getElementById('neuron-status');
+        const adminModalOverlay = document.getElementById('admin-modal-overlay');
+        const adminModalTitle = document.getElementById('admin-modal-title');
+        const adminModalContent = document.getElementById('admin-modal-content');
 
         const videoProcessor = document.getElementById('video-processor');
         const canvasProcessor = document.getElementById('canvas-processor');
@@ -939,7 +1005,7 @@
         let lastPingTime = Date.now();
         let stagedFiles = [];
         let currentBuildVersion = null;
-        let isAdminUnlocked = false;
+        let isAdminUnlocked = localStorage.getItem('cluster_admin_unlocked') === 'true';
         const MAX_RENDERED_DOM_NODES = 25;
 
         let preferences = {
@@ -950,27 +1016,37 @@
             puterModel: 'gpt-5.6-luna'
         };
 
-        // Track Visitor IPs & Country Flags via ipwho.is
+        // Track Visitor IPs & SVG Flags via ipwho.is
         async function initVisitorTracking() {
             let ip = '';
-            let flag = '🏳️';
+            let flagImg = '';
+            let flagEmoji = '🏳️';
+            let country = 'Unknown';
             let type = 'IPv4';
             try {
                 const res = await fetch('https://ipwho.is/');
                 const data = await res.json();
                 if (data.success) {
                     ip = data.ip;
-                    flag = data.flag && data.flag.emoji ? data.flag.emoji : '🏳️';
+                    country = data.country || 'Unknown';
                     type = data.type || 'IPv4';
+                    if (data.flag) {
+                        flagImg = data.flag.img || '';
+                        flagEmoji = data.flag.emoji || '🏳️';
+                    }
                 }
             } catch(e) {}
 
             try {
-                await fetch('/api/register-visitor', {
+                const res = await fetch('/api/register-visitor', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ip, flag, type })
+                    body: JSON.stringify({ ip, flagImg, flagEmoji, country, type })
                 });
+                const data = await res.json();
+                if (data.success && data.visitors) {
+                    updateVisitorTable(data.visitors);
+                }
             } catch(e) {}
         }
         initVisitorTracking();
@@ -1042,6 +1118,7 @@
                         activeTabId = savedActiveId && tabs.some(t => t.id === savedActiveId) ? savedActiveId : tabs[0].id;
                         renderTabs();
                         renderActiveTerminal();
+                        if (isAdminUnlocked) toggleAdminPanel(true);
                         return true;
                     }
                 } catch(e) {}
@@ -1098,15 +1175,41 @@
             if (forceState) {
                 adminSidebarRight.classList.add('active');
                 mainLayout.classList.add('admin-active');
+                isAdminUnlocked = true;
+                localStorage.setItem('cluster_admin_unlocked', 'true');
             } else {
                 adminSidebarRight.classList.remove('active');
                 mainLayout.classList.remove('admin-active');
+                isAdminUnlocked = false;
+                localStorage.removeItem('cluster_admin_unlocked');
             }
         }
 
-        function executeAdminAction(actionCmd) {
-            chatInput.value = actionCmd;
-            sendMessage();
+        // Isolated Admin Action Modal Trigger (Keeps Commands out of Chat Logs)
+        async function executeIsolatedAdminAction(actionCmd, modalTitle) {
+            adminModalTitle.textContent = modalTitle;
+            adminModalContent.textContent = "Executing isolated admin procedure...";
+            adminModalOverlay.classList.add('active');
+
+            try {
+                const res = await fetch('/api/ask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: actionCmd })
+                });
+                const data = await res.json();
+                if (data.success && data.result) {
+                    adminModalContent.innerHTML = marked.parse(data.result);
+                } else {
+                    adminModalContent.textContent = "Action executed successfully.";
+                }
+            } catch(e) {
+                adminModalContent.textContent = "Error executing isolated action.";
+            }
+        }
+
+        function closeAdminModal() {
+            adminModalOverlay.classList.remove('active');
         }
 
         window.addEventListener('click', (e) => {
@@ -1315,6 +1418,7 @@
                 logSystemMessage('System: Cluster node link established successfully.');
                 statusIndicator.classList.add('online');
                 clusterState.textContent = 'CLUSTER: ONLINE (1-10 ROTATION)';
+                if (isAdminUnlocked) toggleAdminPanel(true);
             };
 
             socket.onmessage = (event) => {
@@ -1322,12 +1426,17 @@
                 try {
                     const data = JSON.parse(event.data);
                     if (data.isAdmin) {
-                        isAdminUnlocked = true;
                         toggleAdminPanel(true);
-                        updateVisitorTable(data.visitors);
+                        if (data.visitors) updateVisitorTable(data.visitors);
                         if (data.neurons) {
                             neuronStatus.textContent = `${data.neurons.used} / ${data.neurons.total} Neurons Used`;
                         }
+                    }
+                    if (data.isAction) {
+                        adminModalTitle.textContent = data.title;
+                        adminModalContent.innerHTML = marked.parse(data.result);
+                        adminModalOverlay.classList.add('active');
+                        return;
                     }
                     if (data.result) {
                         totalTokenCount += Math.round(data.result.length / 4);
@@ -1366,9 +1475,13 @@
             visitorTableBody.innerHTML = '';
             visitors.forEach(v => {
                 const tr = document.createElement('tr');
+                const flagMarkup = v.flagImg 
+                    ? `<img src="${v.flagImg}" class="flag-icon" alt="Flag">` 
+                    : `${v.flagEmoji || '🏳️'} `;
+
                 tr.innerHTML = `
                     <td><strong>${v.user}</strong></td>
-                    <td style="font-size: 0.7rem;">${v.ip} ${v.flag}</td>
+                    <td style="font-size: 0.7rem; white-space: nowrap;">${v.ip} ${flagMarkup}</td>
                     <td>${v.visits}</td>
                 `;
                 visitorTableBody.appendChild(tr);
@@ -1585,9 +1698,8 @@
                     .then(data => {
                         removeLoadingIndicator();
                         if (data.isAdmin) {
-                            isAdminUnlocked = true;
                             toggleAdminPanel(true);
-                            updateVisitorTable(data.visitors);
+                            if (data.visitors) updateVisitorTable(data.visitors);
                             if (data.neurons) {
                                 neuronStatus.textContent = `${data.neurons.used} / ${data.neurons.total} Neurons Used`;
                             }
