@@ -907,7 +907,6 @@
             }
         }
 
-        // Updated Admin Panel Toggle with Re-Open button state handler
         function toggleAdminPanel(forceState) {
             if (forceState) {
                 adminSidebarRight.classList.add('active');
@@ -1077,17 +1076,15 @@
                 if (file.type.startsWith('video/')) {
                     await processVideoFile(file);
                 } else if (file.type.startsWith('image/')) {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        stagedFiles.push({
-                            name: file.name,
-                            size: (file.size / 1024).toFixed(1) + ' KB',
-                            content: e.target.result,
-                            type: 'image'
-                        });
-                        renderFilePreviews();
-                    };
-                    reader.readAsDataURL(file);
+                    const compressedDataUrl = await compressImageFile(file);
+                    stagedFiles.push({
+                        name: file.name,
+                        size: (file.size / 1024).toFixed(1) + ' KB',
+                        content: `[IMAGE ATTACHMENT: ${file.name}]`,
+                        rawContent: compressedDataUrl,
+                        type: 'image'
+                    });
+                    renderFilePreviews();
                 } else {
                     const reader = new FileReader();
                     reader.onload = (e) => {
@@ -1102,6 +1099,43 @@
                     reader.readAsText(file);
                 }
             }
+        }
+
+        // Canvas image downscaling & compression to prevent base64 context overflows
+        function compressImageFile(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 600;
+                        const MAX_HEIGHT = 600;
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > height) {
+                            if (width > MAX_WIDTH) {
+                                height *= MAX_WIDTH / width;
+                                width = MAX_WIDTH;
+                            }
+                        } else {
+                            if (height > MAX_HEIGHT) {
+                                width *= MAX_HEIGHT / height;
+                                height = MAX_HEIGHT;
+                            }
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.5));
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
         }
 
         async function processVideoFile(file) {
@@ -1131,7 +1165,7 @@
                     videoProcessor.onseeked = () => resolve();
                 });
                 ctxProcessor.drawImage(videoProcessor, 0, 0, canvasWidth, canvasHeight);
-                frames.push(canvasProcessor.toDataURL('image/jpeg', 0.6));
+                frames.push(canvasProcessor.toDataURL('image/jpeg', 0.5));
             }
 
             URL.revokeObjectURL(objectUrl);
@@ -1403,13 +1437,15 @@
                 stagedFiles.forEach(file => {
                     if (file.type === 'video') {
                         filePayloadText += `[VIDEO FILE ATTACHMENT]: ${file.name}\n${file.content}\n`;
+                    } else if (file.type === 'image') {
+                        filePayloadText += `[IMAGE ATTACHMENT: ${file.name}] Data URL attached.\n`;
                     } else {
                         filePayloadText += `Analyze and scan attached file contents from [${file.name}]:\n\n\`\`\`\n${file.content}\n\`\`\`\n\n`;
                     }
                 });
 
                 fullPromptForAI = filePayloadText + (userTextInput || "Please review attached file(s) or video.");
-                userDisplayMessage = `<details class="file-collapse"><summary>📁 Attached Files/Videos: ${fileSummaryText} (Click to toggle content)</summary><pre>${stagedFiles.map(f => `--- ${f.name} ---\n` + f.content).join('\n\n')}</pre></details>\n\n` + (userTextInput || "");
+                userDisplayMessage = `<details class="file-collapse"><summary>📁 Attached Files/Videos: ${fileSummaryText} (Click to toggle content)</summary><pre>${stagedFiles.map(f => `--- ${f.name} ---\n` + (f.rawContent || f.content)).join('\n\n')}</pre></details>\n\n` + (userTextInput || "");
                 
                 stagedFiles = [];
                 renderFilePreviews();
