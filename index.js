@@ -154,7 +154,7 @@ async function callCloudflare(prompt) {
   throw new Error('All Cloudflare accounts are currently rate-limited or locked out.');
 }
 
-// Visitor registration endpoint to track IPs & Flags (including img SVG URLs) via ipwho.is
+// Visitor registration endpoint to track IPs & Flags via ipwho.is
 app.post('/api/register-visitor', (req, res) => {
     const { ip, flagImg, flagEmoji, country, type } = req.body;
     const fallbackIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'Unknown';
@@ -183,18 +183,29 @@ app.post('/api/register-visitor', (req, res) => {
     res.json({ success: true, user: existing.user, visitors: visitorList, neurons: neuronAllocation });
 });
 
-// REST AI endpoint with Admin command interceptor (/AN_CLUSTER) and strictly HELD SECURE logs
+// Per-User Timeout Endpoint
+app.post('/api/timeout-user', (req, res) => {
+    const { user } = req.body;
+    const target = visitorList.find(v => v.user === user);
+    if (target) {
+        target.timeout = !target.timeout; // Toggle timeout status
+        neuronAllocation.used += 5;
+        console.log(`[Admin Action] User ${user} timeout status changed to: ${target.timeout}`);
+        return res.json({ success: true, visitors: visitorList, neurons: neuronAllocation, message: `User ${user} has been ${target.timeout ? 'timed out/throttled' : 'restored'}.` });
+    }
+    res.status(404).json({ success: false, error: 'User not found.' });
+});
+
+// REST AI endpoint with Admin command interceptor (/AN_CLUSTER)
 app.post('/api/ask', async (req, res) => {
   const { prompt } = req.body;
   if (!prompt) return res.status(400).json({ error: 'Prompt is required.' });
 
-  // Safe logging helper: completely hide and censor any admin key in console logs
   const censoredLogPrompt = prompt.trim().includes('/AN_CLUSTER') 
       ? '/AN_CLUSTER = [CENSORED_KEY_SECURELY_HIDDEN]' 
       : prompt;
   console.log(`[Incoming Request] ${censoredLogPrompt}`);
 
-  // Intercept Secret Admin Command: /AN_CLUSTER = {KEY}
   if (prompt.trim().startsWith('/AN_CLUSTER')) {
       const parts = prompt.split('=');
       const providedKey = parts[1] ? parts[1].trim() : '';
@@ -204,18 +215,13 @@ app.post('/api/ask', async (req, res) => {
               isAdmin: true, 
               visitors: visitorList,
               neurons: neuronAllocation,
-              result: "🔓 **ADMIN ACCESS GRANTED**: Admin command panel unlocked on right side. Live visitor IPs and management tools active."
+              result: "🔓 **ADMIN ACCESS GRANTED**: Admin command panel unlocked on right side."
           });
       } else {
           return res.status(403).json({ success: false, error: 'Access Denied: Invalid Admin Cluster Key.' });
       }
   }
 
-  // Handle isolated admin actions inline without opening full-screen modals
-  if (prompt.trim() === '/timeout') {
-      neuronAllocation.used += 5;
-      return res.json({ success: true, isAction: true, title: '⚡ IP TIMEOUT TOOL', result: 'Active visitor IPs throttled successfully.', neurons: neuronAllocation });
-  }
   if (prompt.trim() === '/purge') {
       neuronAllocation.used += 5;
       return res.json({ success: true, isAction: true, title: '🧹 CACHE PURGE', result: 'Bot query caches and RAM buffers cleared.', neurons: neuronAllocation });
@@ -233,12 +239,10 @@ app.post('/api/ask', async (req, res) => {
   }
 });
 
-// Version Polling API Endpoint for live updates notification
 app.get('/api/version', (req, res) => {
     res.json({ version: currentSiteVersion });
 });
 
-// Verification helper function ensuring requests only come from GitHub
 function verifyGitHubSignature(req, res, next) {
     const signature = req.headers['x-hub-signature-256'];
     if (!signature) {
@@ -255,25 +259,14 @@ function verifyGitHubSignature(req, res, next) {
     }
 }
 
-// Route to listen for GitHub webhook events
 app.post('/webhook', verifyGitHubSignature, (req, res) => {
     const githubEvent = req.headers['x-github-event'];
     const payload = req.body;
 
-    console.log(`\n🔔 New Event Received: [${githubEvent ? githubEvent.toUpperCase() : 'UNKNOWN'}]`);
-
     if (githubEvent === 'push') {
         const branch = payload.ref ? payload.ref.replace('refs/heads/', '') : '';
-        const repo = payload.repository ? payload.repository.full_name : 'Unknown Repo';
-        const commitMsg = payload.head_commit ? payload.head_commit.message : 'No commit message';
-
-        console.log(`🟢 Code pushed to ${repo} on branch [${branch}]`);
-        console.log(`💬 Message: "${commitMsg}"`);
-
         if (branch === 'main') {
-            console.log('🚀 Triggering live site update notification pipeline...');
             currentSiteVersion = Date.now().toString();
-
             wss.clients.forEach((client) => {
                 if (client.readyState === WebSocket.OPEN) {
                     client.send(JSON.stringify({ 
@@ -283,11 +276,9 @@ app.post('/webhook', verifyGitHubSignature, (req, res) => {
             });
         }
     }
-
-    res.status(200).send('Webhook received and event logged successfully.');
+    res.status(200).send('Webhook received.');
 });
 
-// WebSocket connection handling with censored log support
 wss.on('connection', (ws) => {
     ws.isAlive = true;
     ws.lastActivity = Date.now();
@@ -300,10 +291,7 @@ wss.on('connection', (ws) => {
         try {
             const parsed = JSON.parse(message.toString());
             const prompt = parsed.prompt;
-            if (!prompt) {
-                ws.send(JSON.stringify({ error: 'Prompt is required.' }));
-                return;
-            }
+            if (!prompt) return;
 
             const censoredLogPrompt = prompt.trim().includes('/AN_CLUSTER') 
                 ? '/AN_CLUSTER = [CENSORED_KEY_SECURELY_HIDDEN]' 
@@ -328,11 +316,6 @@ wss.on('connection', (ws) => {
                 }
             }
 
-            if (prompt.trim() === '/timeout') {
-                neuronAllocation.used += 5;
-                ws.send(JSON.stringify({ success: true, isAction: true, title: '⚡ IP TIMEOUT TOOL', result: 'Active visitor IPs throttled successfully.', neurons: neuronAllocation }));
-                return;
-            }
             if (prompt.trim() === '/purge') {
                 neuronAllocation.used += 5;
                 ws.send(JSON.stringify({ success: true, isAction: true, title: '🧹 CACHE PURGE', result: 'Bot query caches and RAM buffers cleared.', neurons: neuronAllocation }));
@@ -360,12 +343,4 @@ wss.on('connection', (ws) => {
     ws.on('close', () => { clearInterval(idleCheck); });
 });
 
-const interval = setInterval(() => {
-    wss.clients.forEach((ws) => {
-        if (ws.isAlive === false) return ws.terminate();
-        ws.isAlive = false;
-        ws.ping();
-    });
-}, 20000);
-
-server.listen(PORT, () => console.log(`🚀 Cluster Sync Engine Backend & Admin Cluster running on port ${PORT}`));
+server.listen(PORT, () => console.log(`🚀 Cluster Sync Engine Backend running on port ${PORT}`));
