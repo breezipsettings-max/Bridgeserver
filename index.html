@@ -24,9 +24,7 @@
             --sidebar-width: 220px;
         }
 
-        * {
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
 
         body {
             background-color: var(--bg-color);
@@ -55,17 +53,12 @@
             transition: max-width 0.3s ease, width 0.3s ease;
         }
 
-        .main-layout.admin-active {
-            max-width: 1520px;
-        }
+        .main-layout.admin-active { max-width: 1520px; }
 
-        /* Top Yellow/Green Update Notification Banner */
         #update-banner {
             display: none;
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
+            top: 0; left: 0; right: 0;
             background: linear-gradient(90deg, #ffaa00, #00ff66);
             color: #000;
             font-weight: bold;
@@ -78,9 +71,7 @@
             justify-content: space-between;
         }
 
-        #update-banner.active {
-            display: flex;
-        }
+        #update-banner.active { display: flex; }
 
         #update-banner button {
             background: #000;
@@ -93,12 +84,6 @@
             font-family: inherit;
         }
 
-        #update-banner button:hover {
-            background: #111;
-            color: #fff;
-        }
-
-        /* Left Sidebar for Tabs & Settings */
         .sidebar {
             width: var(--sidebar-width);
             background: #0a0d12;
@@ -109,11 +94,7 @@
             position: relative;
         }
 
-        .sidebar-top-cluster {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 15px;
-        }
+        .sidebar-top-cluster { display: flex; gap: 8px; margin-bottom: 15px; }
 
         .new-chat-btn {
             flex: 1;
@@ -129,18 +110,9 @@
             transition: all 0.2s;
         }
 
-        .new-chat-btn:hover {
-            background: var(--accent-green);
-            color: #000;
-        }
+        .new-chat-btn:hover { background: var(--accent-green); color: #000; }
 
-        .tab-list {
-            flex: 1;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
+        .tab-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
 
         .tab-item {
             padding: 10px 12px;
@@ -155,10 +127,7 @@
             transition: all 0.2s;
         }
 
-        .tab-item:hover {
-            background: rgba(255,255,255,0.03);
-            color: var(--text-bright);
-        }
+        .tab-item:hover { background: rgba(255,255,255,0.03); color: var(--text-bright); }
 
         .tab-item.active {
             background: var(--terminal-bg);
@@ -167,12 +136,7 @@
             border-left: 3px solid var(--accent-cyan);
         }
 
-        .sidebar-bottom {
-            padding-top: 10px;
-            border-top: 1px solid var(--border-color);
-            margin-top: 10px;
-            position: relative;
-        }
+        .sidebar-bottom { padding-top: 10px; border-top: 1px solid var(--border-color); margin-top: 10px; position: relative; }
 
         .settings-btn {
             background: transparent;
@@ -191,17 +155,11 @@
             transition: all 0.2s;
         }
 
-        .settings-btn:hover {
-            border-color: var(--accent-green);
-            color: var(--accent-green);
-            background: rgba(0,255,102,0.05);
-        }
+        .settings-btn:hover { border-color: var(--accent-green); color: var(--accent-green); background: rgba(0,255,102,0.05); }
 
         #settings-popup {
             position: absolute;
-            bottom: 65px;
-            left: 10px;
-            right: 10px;
+            bottom: 65px; left: 10px; right: 10px;
             background: #0f1319;
             border: 1px solid var(--border-color);
             border-radius: 8px;
@@ -213,58 +171,18 @@
             z-index: 200;
         }
 
-        #settings-popup.active {
-            display: flex;
-        }
+        #settings-popup.active { display: flex; }
 
-        .popup-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 8px;
-        }
+        .popup-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; }
+        .popup-header h3 { margin: 0; color: var(--accent-green); font-size: 0.75rem; letter-spacing: 1px; }
 
-        .popup-header h3 {
-            margin: 0;
-            color: var(--accent-green);
-            font-size: 0.75rem;
-            letter-spacing: 1px;
-        }
-
-        .close-popup {
-            background: transparent;
-            border: none;
-            color: var(--text-dim);
-            cursor: pointer;
-            font-size: 1rem;
-        }
-
+        .close-popup { background: transparent; border: none; color: var(--text-dim); cursor: pointer; font-size: 1rem; }
         .close-popup:hover { color: var(--text-bright); }
 
-        .popup-section-title {
-            font-size: 0.65rem;
-            letter-spacing: 1px;
-            color: var(--text-dim);
-            text-transform: uppercase;
-            margin-bottom: 4px;
-        }
+        .popup-section-title { font-size: 0.65rem; letter-spacing: 1px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px; }
 
-        .pref-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.75rem;
-            color: var(--text-bright);
-            padding: 4px 0;
-        }
-
-        .pref-item input[type="checkbox"] {
-            accent-color: var(--accent-green);
-            cursor: pointer;
-            width: 14px;
-            height: 14px;
-        }
+        .pref-item { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-bright); padding: 4px 0; }
+        .pref-item input[type="checkbox"] { accent-color: var(--accent-green); cursor: pointer; width: 14px; height: 14px; }
 
         .model-select {
             background: var(--terminal-bg);
@@ -294,22 +212,10 @@
             width: 100%;
         }
 
-        .export-btn:hover {
-            border-color: var(--accent-cyan);
-            background: rgba(0,229,255,0.05);
-        }
+        .export-btn:hover { border-color: var(--accent-cyan); background: rgba(0,229,255,0.05); }
 
-        /* Right Terminal Area */
-        .terminal-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            padding: 20px;
-            background: var(--panel-bg);
-            position: relative;
-        }
+        .terminal-container { flex: 1; display: flex; flex-direction: column; padding: 20px; background: var(--panel-bg); position: relative; }
 
-        /* Right-Side Admin Panel */
         .admin-sidebar-right {
             width: 0;
             overflow: hidden;
@@ -322,11 +228,7 @@
             box-shadow: inset 5px 0 15px rgba(0,255,102,0.05);
         }
 
-        .admin-sidebar-right.active {
-            width: 320px;
-            padding: 15px;
-            overflow-y: auto;
-        }
+        .admin-sidebar-right.active { width: 320px; padding: 15px; overflow-y: auto; }
 
         .admin-title {
             color: var(--accent-green);
@@ -341,19 +243,8 @@
             align-items: center;
         }
 
-        .admin-section {
-            margin-bottom: 15px;
-            font-size: 0.75rem;
-        }
-
-        .admin-section label {
-            color: var(--text-dim);
-            text-transform: uppercase;
-            display: block;
-            margin-bottom: 6px;
-            font-size: 0.65rem;
-            letter-spacing: 1px;
-        }
+        .admin-section { margin-bottom: 15px; font-size: 0.75rem; }
+        .admin-section label { color: var(--text-dim); text-transform: uppercase; display: block; margin-bottom: 6px; font-size: 0.65rem; letter-spacing: 1px; }
 
         .admin-command-btn {
             background: var(--terminal-bg);
@@ -370,13 +261,8 @@
             transition: all 0.2s;
         }
 
-        .admin-command-btn:hover {
-            border-color: var(--accent-green);
-            background: rgba(0,255,102,0.05);
-            color: var(--accent-green);
-        }
+        .admin-command-btn:hover { border-color: var(--accent-green); background: rgba(0,255,102,0.05); color: var(--accent-green); }
 
-        /* Inline Green Box Result for Admin Actions (No Fullscreen Modal!) */
         #admin-inline-result {
             display: none;
             background: var(--terminal-bg);
@@ -389,34 +275,33 @@
             box-shadow: 0 0 10px rgba(0,255,102,0.15);
         }
 
-        #admin-inline-result.active {
-            display: block;
+        #admin-inline-result.active { display: block; }
+
+        .visitor-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; color: var(--text-dim); margin-top: 5px; }
+        .visitor-table th, .visitor-table td { border: 1px solid var(--border-color); padding: 5px 6px; text-align: left; vertical-align: middle; }
+        .visitor-table th { color: var(--accent-cyan); background: var(--terminal-bg); }
+
+        /* Timeout button inside visitor table row */
+        .timeout-btn {
+            background: rgba(255, 51, 51, 0.1);
+            border: 1px solid var(--accent-red);
+            color: var(--accent-red);
+            padding: 2px 6px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.65rem;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        .timeout-btn:hover { background: var(--accent-red); color: #000; }
+        .timeout-btn.timed-out {
+            background: var(--accent-amber);
+            border-color: var(--accent-amber);
+            color: #000;
         }
 
-        .visitor-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.7rem;
-            color: var(--text-dim);
-            margin-top: 5px;
-        }
-
-        .visitor-table th, .visitor-table td {
-            border: 1px solid var(--border-color);
-            padding: 5px 6px;
-            text-align: left;
-            vertical-align: middle;
-        }
-
-        .visitor-table th {
-            color: var(--accent-cyan);
-            background: var(--terminal-bg);
-        }
-
-        /* SVG Country Flag Image Styling */
         .flag-icon {
-            width: 18px;
-            height: 13px;
+            width: 18px; height: 13px;
             object-fit: cover;
             border-radius: 2px;
             margin-left: 4px;
@@ -424,20 +309,8 @@
             border: 1px solid rgba(255,255,255,0.1);
         }
 
-        .header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 12px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .title-group {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
+        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+        .title-group { display: flex; align-items: center; gap: 12px; }
 
         h1 {
             font-size: 1.1rem;
@@ -447,30 +320,18 @@
             text-shadow: 0 0 10px rgba(0,255,102,0.3);
         }
 
-        .telemetry-readout {
-            font-size: 0.75rem;
-            color: var(--text-dim);
-            display: flex;
-            gap: 15px;
-        }
-
-        .telemetry-readout span {
-            color: var(--accent-cyan);
-        }
+        .telemetry-readout { font-size: 0.75rem; color: var(--text-dim); display: flex; gap: 15px; }
+        .telemetry-readout span { color: var(--accent-cyan); }
 
         #status {
-            width: 10px;
-            height: 10px;
+            width: 10px; height: 10px;
             border-radius: 50%;
             background: var(--accent-red);
             box-shadow: 0 0 8px var(--accent-red);
             transition: all 0.3s ease;
         }
 
-        #status.online {
-            background: var(--accent-green);
-            box-shadow: 0 0 10px var(--accent-green);
-        }
+        #status.online { background: var(--accent-green); box-shadow: 0 0 10px var(--accent-green); }
 
         .header-box {
             background: rgba(0,0,0,0.4);
@@ -502,15 +363,8 @@
         #terminal::-webkit-scrollbar { width: 6px; }
         #terminal::-webkit-scrollbar-track { background: var(--terminal-bg); }
         #terminal::-webkit-scrollbar-thumb { background: #1a222d; border-radius: 3px; }
-        #terminal::-webkit-scrollbar-thumb:hover { background: var(--accent-green); }
 
-        .message {
-            margin-bottom: 16px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid rgba(255,255,255,0.02);
-            font-size: 0.88rem;
-            line-height: 1.6;
-        }
+        .message { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.02); font-size: 0.88rem; line-height: 1.6; }
 
         .system { color: var(--text-dim); font-style: italic; }
         .system-update {
@@ -534,30 +388,13 @@
             padding: 6px 10px;
         }
 
-        details.file-collapse summary {
-            cursor: pointer;
-            color: var(--accent-cyan);
-            font-size: 0.8rem;
-            outline: none;
-        }
+        details.file-collapse summary { cursor: pointer; color: var(--accent-cyan); font-size: 0.8rem; outline: none; }
+        details.file-collapse summary:hover { color: var(--accent-green); }
 
-        details.file-collapse summary:hover {
-            color: var(--accent-green);
-        }
-
-        .loading-node {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            color: var(--accent-green);
-            font-style: italic;
-            font-size: 0.85rem;
-            margin-bottom: 15px;
-        }
+        .loading-node { display: flex; align-items: center; gap: 12px; color: var(--accent-green); font-style: italic; font-size: 0.85rem; margin-bottom: 15px; }
 
         .spinner-dot {
-            width: 14px;
-            height: 14px;
+            width: 14px; height: 14px;
             border: 2px solid var(--accent-green);
             border-top-color: transparent;
             border-radius: 50%;
@@ -565,10 +402,7 @@
             box-shadow: 0 0 8px var(--accent-green);
         }
 
-        @keyframes spin-glow {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        @keyframes spin-glow { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
         .code-box {
             position: relative;
@@ -580,18 +414,11 @@
             overflow-x: auto;
         }
 
-        .code-box pre {
-            margin: 0;
-            color: var(--accent-green);
-            font-family: 'Courier New', monospace;
-            font-size: 0.85rem;
-            white-space: pre-wrap;
-        }
+        .code-box pre { margin: 0; color: var(--accent-green); font-family: 'Courier New', monospace; font-size: 0.85rem; white-space: pre-wrap; }
 
         .copy-btn {
             position: absolute;
-            top: 8px;
-            right: 8px;
+            top: 8px; right: 8px;
             background: #11161d;
             color: var(--accent-green);
             border: 1px solid var(--accent-green);
@@ -616,22 +443,10 @@
             transition: border-color 0.2s, box-shadow 0.2s;
         }
 
-        .input-wrapper:focus-within {
-            border-color: var(--accent-green);
-            box-shadow: 0 0 10px rgba(0,255,102,0.15);
-        }
+        .input-wrapper:focus-within { border-color: var(--accent-green); box-shadow: 0 0 10px rgba(0,255,102,0.15); }
 
-        #file-preview-container {
-            display: none;
-            flex-wrap: wrap;
-            gap: 6px;
-            padding: 4px 6px;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        #file-preview-container.active {
-            display: flex;
-        }
+        #file-preview-container { display: none; flex-wrap: wrap; gap: 6px; padding: 4px 6px; border-bottom: 1px solid var(--border-color); }
+        #file-preview-container.active { display: flex; }
 
         .file-chip {
             background: rgba(0, 255, 102, 0.08);
@@ -645,31 +460,11 @@
             gap: 8px;
         }
 
-        .file-chip span {
-            max-width: 150px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
+        .file-chip span { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .file-chip button { background: transparent; border: none; color: var(--text-dim); cursor: pointer; font-size: 0.85rem; padding: 0; }
+        .file-chip button:hover { color: var(--accent-red); }
 
-        .file-chip button {
-            background: transparent;
-            border: none;
-            color: var(--text-dim);
-            cursor: pointer;
-            font-size: 0.85rem;
-            padding: 0;
-        }
-
-        .file-chip button:hover {
-            color: var(--accent-red);
-        }
-
-        .input-cluster { 
-            display: flex; 
-            gap: 10px; 
-            position: relative;
-        }
+        .input-cluster { display: flex; gap: 10px; position: relative; }
 
         .plus-btn {
             background: transparent;
@@ -686,21 +481,9 @@
             transition: all 0.2s;
         }
 
-        .plus-btn:hover {
-            border-color: var(--accent-green);
-            background: rgba(0,255,102,0.05);
-        }
+        .plus-btn:hover { border-color: var(--accent-green); background: rgba(0,255,102,0.05); }
 
-        input[type="text"] {
-            background: transparent;
-            border: none;
-            color: var(--accent-green);
-            flex: 1;
-            padding: 8px 10px;
-            font-family: inherit;
-            font-size: 0.95rem;
-            outline: none;
-        }
+        input[type="text"] { background: transparent; border: none; color: var(--accent-green); flex: 1; padding: 8px 10px; font-family: inherit; font-size: 0.95rem; outline: none; }
 
         button.send-btn {
             background: var(--accent-green);
@@ -720,10 +503,7 @@
 
         #drop-overlay {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(8, 10, 15, 0.85);
             z-index: 100;
             display: none;
@@ -732,13 +512,10 @@
             pointer-events: none;
         }
 
-        #drop-overlay.active {
-            display: flex;
-        }
+        #drop-overlay.active { display: flex; }
 
         .drop-circle-box {
-            width: 320px;
-            height: 320px;
+            width: 320px; height: 320px;
             border: 3px dashed var(--accent-green);
             border-radius: 50%;
             display: flex;
@@ -750,21 +527,16 @@
             color: var(--accent-green);
             padding: 20px;
         }
-
-        #file-selector {
-            display: none;
-        }
+        #file-selector { display: none; }
     </style>
 </head>
 <body>
     <div class="main-layout" id="main-layout">
-        <!-- Live Webhook Update Banner -->
         <div id="update-banner">
             <span>⚠️ System Notice: Site is being Updated! Please refresh to apply the Updated Version!</span>
             <button onclick="window.location.reload()">REFRESH NOW</button>
         </div>
 
-        <!-- Sidebar for Chat Tabs -->
         <div class="sidebar">
             <div id="settings-popup">
                 <div class="popup-header">
@@ -790,22 +562,18 @@
                 </select>
 
                 <div class="popup-section-title">Preferences</div>
-                
                 <div class="pref-item">
                     <span>Session Persistence</span>
                     <input type="checkbox" id="pref-persistence" checked onchange="savePreferences()">
                 </div>
-                
                 <div class="pref-item">
                     <span>Auto-Scroll Lock</span>
                     <input type="checkbox" id="pref-autoscroll" checked onchange="savePreferences()">
                 </div>
-
                 <div class="pref-item">
                     <span>Live Telemetry Readout</span>
                     <input type="checkbox" id="pref-telemetry" checked onchange="savePreferences()">
                 </div>
-
                 <div style="border-top: 1px solid var(--border-color); margin-top: 4px; padding-top: 8px;">
                     <button class="export-btn" onclick="exportChatMarkdown()">📥 Export Active Chat</button>
                 </div>
@@ -814,9 +582,7 @@
             <div class="sidebar-top-cluster">
                 <button class="new-chat-btn" onclick="createNewTab()">+ NEW CHAT</button>
             </div>
-            <div class="tab-list" id="tab-list">
-                <!-- Dynamic tabs append here -->
-            </div>
+            <div class="tab-list" id="tab-list"></div>
             <div class="sidebar-bottom">
                 <button class="settings-btn" onclick="toggleSettings()" title="Settings">
                     <span>SETTINGS</span>
@@ -824,7 +590,6 @@
             </div>
         </div>
 
-        <!-- Terminal Main Area -->
         <div class="terminal-container" id="terminal-container">
             <div id="drop-overlay">
                 <div class="drop-circle-box">
@@ -844,7 +609,6 @@
                 </div>
             </div>
 
-            <!-- Header Info Box -->
             <div class="header-box">
                 <div>
                     <strong>Architecture Active:</strong> <span id="arch-provider">Cloudflare AI Cluster</span> active | 
@@ -855,7 +619,6 @@
 
             <div id="terminal"></div>
             
-            <!-- Input Wrapper with Staged File Preview Bar -->
             <div class="input-wrapper">
                 <div id="file-preview-container"></div>
                 <div class="input-cluster">
@@ -867,7 +630,6 @@
             </div>
         </div>
 
-        <!-- Right-Side Admin Commands Panel -->
         <div class="admin-sidebar-right" id="admin-sidebar-right">
             <div class="admin-title">
                 <span>ADMIN COMMANDS</span>
@@ -882,24 +644,22 @@
             </div>
 
             <div class="admin-section">
-                <label>Clickable Admin Tools (Inline Box)</label>
-                <!-- Inline Green Result Box -->
+                <label>Admin Tools (Inline Box)</label>
                 <div id="admin-inline-result">Ready...</div>
 
-                <button class="admin-command-btn" onclick="executeInlineAdminAction('/timeout', '⚡ IP TIMEOUT')">⚡ /timeout (Throttle Active IP)</button>
                 <button class="admin-command-btn" onclick="executeInlineAdminAction('/purge', '🧹 CACHE PURGE')">🧹 /purge (Clear Bot Cache)</button>
                 <button class="admin-command-btn" onclick="executeInlineAdminAction('/stats', '📊 TELEMETRY')">📊 /stats (Cluster Telemetry)</button>
             </div>
 
             <div class="admin-section">
-                <label>Active Visitors & IP Tracker</label>
+                <label>Active Visitors & Per-User Timeout</label>
                 <div style="max-height: 200px; overflow-y: auto;">
                     <table class="visitor-table">
                         <thead>
                             <tr>
                                 <th>User</th>
                                 <th>IP & Flag</th>
-                                <th>Visits</th>
+                                <th>Action</th>
                             </tr>
                         </thead>
                         <tbody id="visitor-table-body">
@@ -911,7 +671,6 @@
         </div>
     </div>
 
-    <!-- Hidden Video & Canvas Processing Nodes -->
     <video id="video-processor" style="display:none;" muted playsinline></video>
     <canvas id="canvas-processor" style="display:none;"></canvas>
 
@@ -962,7 +721,6 @@
             puterModel: 'gpt-5.6-luna'
         };
 
-        // Track Visitor IPs & SVG Flags via ipwho.is
         async function initVisitorTracking() {
             let ip = '';
             let flagImg = '';
@@ -1132,7 +890,6 @@
             }
         }
 
-        // Inline Green Box execution (No Fullscreen, strictly inside admin sidebar)
         async function executeInlineAdminAction(actionCmd, toolName) {
             adminInlineResult.className = 'active';
             adminInlineResult.textContent = `[${toolName}] Executing...`;
@@ -1154,6 +911,32 @@
                 }
             } catch(e) {
                 adminInlineResult.textContent = `${toolName}: Connection Error.`;
+            }
+        }
+
+        // Per-user Timeout Action Triggered from Visitor Table Button
+        async function timeoutUser(username) {
+            adminInlineResult.className = 'active';
+            adminInlineResult.textContent = `[TIMEOUT] Processing ${username}...`;
+
+            try {
+                const res = await fetch('/api/timeout-user', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user: username })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    adminInlineResult.textContent = data.message;
+                    if (data.visitors) updateVisitorTable(data.visitors);
+                    if (data.neurons) {
+                        neuronStatus.textContent = `${data.neurons.used} / ${data.neurons.total} Neurons Used (Resets in 24h)`;
+                    }
+                } else {
+                    adminInlineResult.textContent = `Timeout failed for ${username}.`;
+                }
+            } catch(e) {
+                adminInlineResult.textContent = `Connection error timing out ${username}.`;
             }
         }
 
@@ -1417,6 +1200,7 @@
             };
         }
 
+        // Updated Visitor Table with individual Timeout button per user
         function updateVisitorTable(visitors) {
             if (!visitors || visitors.length === 0) {
                 visitorTableBody.innerHTML = `<tr><td colspan="3" style="text-align:center;">No visitors recorded yet.</td></tr>`;
@@ -1429,10 +1213,13 @@
                     ? `<img src="${v.flagImg}" class="flag-icon" alt="Flag">` 
                     : `${v.flagEmoji || '🏳️'} `;
 
+                const timeoutBtnClass = v.timeout ? 'timeout-btn timed-out' : 'timeout-btn';
+                const timeoutBtnText = v.timeout ? 'UNTIMEOUT' : 'TIMEOUT';
+
                 tr.innerHTML = `
                     <td><strong>${v.user}</strong></td>
                     <td style="font-size: 0.7rem; white-space: nowrap;">${v.ip} ${flagMarkup}</td>
-                    <td>${v.visits}</td>
+                    <td><button class="${timeoutBtnClass}" onclick="timeoutUser('${v.user}')">${timeoutBtnText}</button></td>
                 `;
                 visitorTableBody.appendChild(tr);
             });
