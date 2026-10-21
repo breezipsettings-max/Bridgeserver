@@ -10,8 +10,12 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET || "";
+const WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET;
 
+if (!WEBHOOK_SECRET) {
+    console.error("❌ CRITICAL ERROR: GITHUB_WEBHOOK_SECRET environment variable is not set!");
+    process.exit(1);
+}
 // Track site build version state for client refresh polling
 let currentSiteVersion = Date.now().toString();
 
