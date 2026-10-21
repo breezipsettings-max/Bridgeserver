@@ -1280,7 +1280,7 @@
                     if (data.result) {
                         totalTokenCount += Math.round(data.result.length / 4);
                         telemetryTokens.textContent = totalTokenCount;
-                        renderFormattedMessage(data.result, 'ai-msg');
+                        renderFormattedMessage(data.result, 'ai-msg', data.thought || data.reasoning || '');
                         if (data.neurons) {
                             neuronStatus.textContent = `${data.neurons.used} / ${data.neurons.total} Neurons Used (Resets in 24h)`;
                         }
@@ -1362,31 +1362,14 @@
             }
         }
 
-        // Universal parsing helper to split reasoning/thinking blocks from final content
-        function parseModelOutput(rawText) {
-            if (!rawText) return { thought: '', final: '' };
-
-            let thought = '';
-            let final = rawText;
-
-            // Pattern 1: Look for explicit AI NODE: or Thinking Process lines at the beginning
-            const aiNodeMatch = final.match(/^(?:AI NODE|Thinking Process|Reasoning)[:\s]+([\s\S]*?)(?=\n\s*\n[A-Z][a-z]|\n[A-Z][a-z]+[!?.:]|$)/i);
-            
-            // Pattern 2: Generic internal monologue prefix check
-            if (aiNodeMatch) {
-                thought = aiNodeMatch[1].trim();
-                final = final.replace(aiNodeMatch[0], '').trim();
-            } else if (final.includes('We need answer') || final.includes('User says:') || final.includes('Need understand context')) {
-                // Split around common conversational answers if thought is embedded
-                const splitIndex = final.indexOf('Hello!') !== -1 ? final.indexOf('Hello!') : 
-                                   final.indexOf('Yes,') !== -1 ? final.indexOf('Yes,') : -1;
-                if (splitIndex > 0) {
-                    thought = final.substring(0, splitIndex).trim();
-                    final = final.substring(splitIndex).trim();
-                }
-            }
-
-            return { thought, final };
+        // HTML Escape Utility to Prevent XSS
+        function escapeHTML(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
         }
 
         function renderActiveTerminal() {
@@ -1436,19 +1419,19 @@
                     contentDiv.style.display = 'inline-block';
                     contentDiv.style.width = '100%';
 
-                    // Apply universal reasoning parser
-                    const parsed = parseModelOutput(msg.content);
+                    const thought = msg.thought || '';
+                    const finalText = msg.content || '';
 
                     let renderedHTML = '';
-                    if (parsed.thought) {
+                    if (thought) {
                         renderedHTML += `
                             <details class="thinking-collapse">
                                 <summary>⚡ [ AI Thinking Process ]</summary>
-                                <div class="thinking-body">${parsed.thought}</div>
+                                <div class="thinking-body">${escapeHTML(thought)}</div>
                             </details>
                         `;
                     }
-                    renderedHTML += marked.parse(parsed.final || msg.content);
+                    renderedHTML += marked.parse(finalText);
                     contentDiv.innerHTML = renderedHTML;
 
                     const codeBlocks = contentDiv.querySelectorAll('pre');
@@ -1479,10 +1462,10 @@
             }
         }
 
-        function renderFormattedMessage(markdownText, className) {
+        function renderFormattedMessage(markdownText, className, thought = '') {
             const currentTab = getActiveTab();
             if (currentTab) {
-                currentTab.messages.push({ type: 'ai', content: markdownText });
+                currentTab.messages.push({ type: 'ai', content: markdownText, thought: thought || '' });
                 renderActiveTerminal();
                 clusterState.textContent = 'CLUSTER: ACTIVE';
                 saveSessions();
@@ -1555,11 +1538,14 @@
                     removeLoadingIndicator();
                     
                     let fullAiText = "";
-                    const aiMsgIdx = currentTab.messages.push({ type: 'ai', content: "" }) - 1;
+                    let fullReasoning = "";
+                    const aiMsgIdx = currentTab.messages.push({ type: 'ai', thought: "", content: "" }) - 1;
 
                     for await (const part of chatResp) {
-                        const chunk = part?.text || part?.reasoning || "";
-                        fullAiText += chunk;
+                        if (part?.reasoning) fullReasoning += part.reasoning;
+                        if (part?.text) fullAiText += part.text;
+
+                        currentTab.messages[aiMsgIdx].thought = fullReasoning;
                         currentTab.messages[aiMsgIdx].content = fullAiText;
                         renderActiveTerminal();
                     }
@@ -1595,7 +1581,7 @@
                         if (data.success) {
                             totalTokenCount += Math.round(data.result.length / 4);
                             telemetryTokens.textContent = totalTokenCount;
-                            renderFormattedMessage(data.result, 'ai-msg');
+                            renderFormattedMessage(data.result, 'ai-msg', data.thought || data.reasoning || '');
                             if (data.neurons) {
                                 neuronStatus.textContent = `${data.neurons.used} / ${data.neurons.total} Neurons Used (Resets in 24h)`;
                             }
