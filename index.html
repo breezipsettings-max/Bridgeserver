@@ -157,7 +157,6 @@
 
         .settings-btn:hover { border-color: var(--accent-green); color: var(--accent-green); background: rgba(0,255,102,0.05); }
 
-        /* Re-open Admin Panel Button */
         .reopen-admin-btn {
             display: none;
             background: rgba(0, 255, 102, 0.1);
@@ -401,6 +400,38 @@
         .user-msg { color: var(--accent-cyan); font-weight: 600; }
         .ai-msg { color: var(--text-bright); }
         .ai-msg strong { color: var(--accent-green); }
+
+        /* Universal Collapsible Reasoning Box */
+        details.thinking-collapse {
+            background: rgba(0, 229, 255, 0.04);
+            border: 1px dashed var(--accent-cyan);
+            border-radius: 4px;
+            margin: 8px 0;
+            padding: 6px 10px;
+            font-size: 0.78rem;
+        }
+
+        details.thinking-collapse summary {
+            cursor: pointer;
+            color: var(--accent-cyan);
+            font-weight: bold;
+            outline: none;
+            letter-spacing: 0.5px;
+        }
+
+        details.thinking-collapse summary:hover {
+            color: var(--accent-green);
+        }
+
+        .thinking-body {
+            margin-top: 6px;
+            color: var(--text-dim);
+            font-style: italic;
+            white-space: pre-wrap;
+            border-left: 2px solid var(--accent-cyan);
+            padding-left: 8px;
+            line-height: 1.4;
+        }
 
         details.file-collapse {
             background: rgba(0,0,0,0.3);
@@ -1331,6 +1362,33 @@
             }
         }
 
+        // Universal parsing helper to split reasoning/thinking blocks from final content
+        function parseModelOutput(rawText) {
+            if (!rawText) return { thought: '', final: '' };
+
+            let thought = '';
+            let final = rawText;
+
+            // Pattern 1: Look for explicit AI NODE: or Thinking Process lines at the beginning
+            const aiNodeMatch = final.match(/^(?:AI NODE|Thinking Process|Reasoning)[:\s]+([\s\S]*?)(?=\n\s*\n[A-Z][a-z]|\n[A-Z][a-z]+[!?.:]|$)/i);
+            
+            // Pattern 2: Generic internal monologue prefix check
+            if (aiNodeMatch) {
+                thought = aiNodeMatch[1].trim();
+                final = final.replace(aiNodeMatch[0], '').trim();
+            } else if (final.includes('We need answer') || final.includes('User says:') || final.includes('Need understand context')) {
+                // Split around common conversational answers if thought is embedded
+                const splitIndex = final.indexOf('Hello!') !== -1 ? final.indexOf('Hello!') : 
+                                   final.indexOf('Yes,') !== -1 ? final.indexOf('Yes,') : -1;
+                if (splitIndex > 0) {
+                    thought = final.substring(0, splitIndex).trim();
+                    final = final.substring(splitIndex).trim();
+                }
+            }
+
+            return { thought, final };
+        }
+
         function renderActiveTerminal() {
             terminal.innerHTML = '';
             const currentTab = getActiveTab();
@@ -1377,7 +1435,21 @@
                     const contentDiv = document.createElement('div');
                     contentDiv.style.display = 'inline-block';
                     contentDiv.style.width = '100%';
-                    contentDiv.innerHTML = marked.parse(msg.content);
+
+                    // Apply universal reasoning parser
+                    const parsed = parseModelOutput(msg.content);
+
+                    let renderedHTML = '';
+                    if (parsed.thought) {
+                        renderedHTML += `
+                            <details class="thinking-collapse">
+                                <summary>⚡ [ AI Thinking Process ]</summary>
+                                <div class="thinking-body">${parsed.thought}</div>
+                            </details>
+                        `;
+                    }
+                    renderedHTML += marked.parse(parsed.final || msg.content);
+                    contentDiv.innerHTML = renderedHTML;
 
                     const codeBlocks = contentDiv.querySelectorAll('pre');
                     codeBlocks.forEach(pre => {
