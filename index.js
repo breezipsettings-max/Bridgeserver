@@ -3,12 +3,24 @@ import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-app.use(express.json());
+const PORT = process.env.PORT || 3000;
+const WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET || "your_shared_secret";
+
+// Track site build version state for client refresh polling
+let currentSiteVersion = Date.now().toString();
+
+// Grab the raw body from incoming requests to safely verify the GitHub signature
+app.use(express.json({
+    verify: (req, res, buf) => {
+        req.rawBody = buf;
+    }
+}));
 
 // Serve static files from root directory & static assets folder
 app.use(express.static(__dirname));
@@ -131,6 +143,79 @@ app.post('/api/ask', async (req, res) => {
   }
 });
 
+// Version Polling API Endpoint for live updates notification
+app.get('/api/version', (req, res) => {
+    res.json({ version: currentSiteVersion });
+});
+
+// Verification helper function ensuring requests only come from GitHub
+function verifyGitHubSignature(req, res, next) {
+    const signature = req.headers['x-hub-signature-256'];
+    if (!signature) {
+        return res.status(401).send('Access Denied: Missing X-Hub-Signature-256 header');
+    }
+
+    const hmac = crypto.createHmac('sha256', WEBHOOK_SECRET);
+    const digest = 'sha256=' + hmac.update(req.rawBody).digest('hex');
+
+    if (crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(digest))) {
+        return next();
+    } else {
+        return res.status(401).send('Access Denied: Invalid signature verification failed.');
+    }
+}
+
+// Route to listen for GitHub webhook events
+app.post('/webhook', verifyGitHubSignature, (req, res) => {
+    const githubEvent = req.headers['x-github-event'];
+    const payload = req.body;
+
+    console.log(`\n🔔 New Event Received: [${githubEvent ? githubEvent.toUpperCase() : 'UNKNOWN'}]`);
+
+    // Handle standard code push events
+    if (githubEvent === 'push') {
+        const branch = payload.ref ? payload.ref.replace('refs/heads/', '') : '';
+        const repo = payload.repository ? payload.repository.full_name : 'Unknown Repo';
+        const commitMsg = payload.head_commit ? payload.head_commit.message : 'No commit message';
+        const author = payload.head_commit && payload.head_commit.author ? payload.head_commit.author.username : 'Unknown';
+
+        console.log(`🟢 Code pushed to ${repo} on branch [${branch}] by @${author}`);
+        console.log(`💬 Message: "${commitMsg}"`);
+
+        // If code is pushed to main branch, trigger application update version change and broadcast notice
+        if (branch === 'main') {
+            console.log('🚀 Triggering live site update notification pipeline...');
+            currentSiteVersion = Date.now().toString();
+
+            wss.clients.forEach((client) => {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(JSON.stringify({ 
+                        systemInfo: "Site is being Updated! Please refresh to apply the Updated Version!" 
+                    }));
+                }
+            });
+        }
+    }
+
+    // Handle Pull Request events
+    if (githubEvent === 'pull_request') {
+        const action = payload.action;
+        const prNumber = payload.number;
+        const prTitle = payload.pull_request ? payload.pull_request.title : '';
+        const user = payload.pull_request && payload.pull_request.user ? payload.pull_request.user.login : 'Unknown';
+
+        console.log(`🔹 Pull Request #${prNumber} was ${action} by @${user}`);
+        console.log(`📋 Title: "${prTitle}"`);
+    }
+
+    // Handle issue creation or comments
+    if (githubEvent === 'issues') {
+        console.log(`⚠️ Issue #${payload.issue.number} was ${payload.action}: "${payload.issue.title}"`);
+    }
+
+    res.status(200).send('Webhook received and event logged successfully.');
+});
+
 // WebSocket connection handling with Idle detection & Heartbeat
 wss.on('connection', (ws) => {
     ws.isAlive = true;
@@ -178,5 +263,4 @@ const interval = setInterval(() => {
     });
 }, 20000);
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Cluster Sync Engine Backend running on port ${PORT}`));
+server.listen(PORT, () => console.log(`🚀 Cluster Sync Engine Backend & GitHub Webhook Listener running on port ${PORT}`));
