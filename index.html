@@ -15,6 +15,8 @@
             --terminal-bg: #040609;
             --accent-green: #00ff66;
             --accent-cyan: #00e5ff;
+            --accent-amber: #ffaa00;
+            --accent-red: #ff3333;
             --text-dim: #6b7c93;
             --text-bright: #e2e8f0;
             --border-color: #1a222d;
@@ -121,7 +123,6 @@
             border-left: 3px solid var(--accent-cyan);
         }
 
-        /* Sidebar Bottom Settings Button Placement */
         .sidebar-bottom {
             padding-top: 10px;
             border-top: 1px solid var(--border-color);
@@ -152,13 +153,6 @@
             background: rgba(0,255,102,0.05);
         }
 
-        .settings-btn img {
-            width: 18px;
-            height: 18px;
-            object-fit: contain;
-        }
-
-        /* Redesigned Floating Popup Menu with Preferences */
         #settings-popup {
             position: absolute;
             bottom: 65px;
@@ -309,8 +303,8 @@
             width: 10px;
             height: 10px;
             border-radius: 50%;
-            background: #ff3333;
-            box-shadow: 0 0 8px #ff3333;
+            background: var(--accent-red);
+            box-shadow: 0 0 8px var(--accent-red);
             transition: all 0.3s ease;
         }
 
@@ -335,6 +329,40 @@
         .header-box span { color: var(--accent-cyan); }
         #cluster-state { color: var(--accent-green); font-weight: bold; }
 
+        /* Video Lock Bar Widget */
+        .video-lock-bar {
+            background: rgba(0, 229, 255, 0.05);
+            border: 1px solid rgba(0, 229, 255, 0.2);
+            border-radius: 6px;
+            padding: 8px 12px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.75rem;
+        }
+
+        .lock-status-badge {
+            background: var(--accent-green);
+            color: #000;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+            font-size: 0.7rem;
+            letter-spacing: 0.5px;
+        }
+
+        .lock-status-badge.warning {
+            background: var(--accent-amber);
+            color: #000;
+        }
+
+        .lock-timer {
+            font-family: monospace;
+            color: var(--accent-cyan);
+            font-weight: bold;
+        }
+
         #terminal {
             flex: 1;
             background: var(--terminal-bg);
@@ -346,7 +374,6 @@
             box-shadow: inset 0 0 25px rgba(0,0,0,0.9);
         }
 
-        /* Custom Scrollbar */
         #terminal::-webkit-scrollbar { width: 6px; }
         #terminal::-webkit-scrollbar-track { background: var(--terminal-bg); }
         #terminal::-webkit-scrollbar-thumb { background: #1a222d; border-radius: 3px; }
@@ -365,7 +392,6 @@
         .ai-msg { color: var(--text-bright); }
         .ai-msg strong { color: var(--accent-green); }
 
-        /* Collapsible details element for attached code */
         details.file-collapse {
             background: rgba(0,0,0,0.3);
             border: 1px solid var(--border-color);
@@ -385,7 +411,6 @@
             color: var(--accent-green);
         }
 
-        /* Pure CSS Glowing Loading Spinner Node */
         .loading-node {
             display: flex;
             align-items: center;
@@ -411,7 +436,6 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Code box formatting with COPY button */
         .code-box {
             position: relative;
             background: var(--code-bg);
@@ -447,7 +471,6 @@
 
         .copy-btn:hover { background: var(--accent-green); color: #000; }
 
-        /* Input Wrapper & Staged File Preview Bar */
         .input-wrapper {
             display: flex;
             flex-direction: column;
@@ -464,7 +487,6 @@
             box-shadow: 0 0 10px rgba(0,255,102,0.15);
         }
 
-        /* Staged Files Preview Container */
         #file-preview-container {
             display: none;
             flex-wrap: wrap;
@@ -506,10 +528,9 @@
         }
 
         .file-chip button:hover {
-            color: #ff3333;
+            color: var(--accent-red);
         }
 
-        /* Input Cluster & Plus Button */
         .input-cluster { 
             display: flex; 
             gap: 10px; 
@@ -563,7 +584,6 @@
         button.send-btn:hover { opacity: 0.9; }
         button.send-btn:active { transform: scale(0.98); }
 
-        /* Drag & Drop Circle Overlay */
         #drop-overlay {
             position: absolute;
             top: 0;
@@ -618,7 +638,6 @@
             100% { box-shadow: 0 0 0 0 rgba(0, 255, 102, 0); }
         }
 
-        /* Hidden File Input */
         #file-selector {
             display: none;
         }
@@ -628,7 +647,6 @@
     <div class="main-layout" id="main-layout">
         <!-- Sidebar for Chat Tabs -->
         <div class="sidebar">
-            <!-- Settings Popup Menu with Preferences -->
             <div id="settings-popup">
                 <div class="popup-header">
                     <h3>CONFIG & PREFERENCES</h3>
@@ -669,6 +687,11 @@
                     <input type="checkbox" id="pref-telemetry" checked onchange="savePreferences()">
                 </div>
 
+                <div class="pref-item">
+                    <span>Strict 5-Min Video Lock</span>
+                    <input type="checkbox" id="pref-video-lock" checked onchange="savePreferences()">
+                </div>
+
                 <div style="border-top: 1px solid var(--border-color); margin-top: 4px; padding-top: 8px;">
                     <button class="export-btn" onclick="exportChatMarkdown()">📥 Export Active Chat</button>
                 </div>
@@ -682,7 +705,7 @@
             </div>
             <div class="sidebar-bottom">
                 <button class="settings-btn" onclick="toggleSettings()" title="Settings">
-                    <img src="assets/Settings.png" alt="Settings">
+                    <img src="assets/Settings.png" alt="Settings" style="width: 18px; height: 18px;" onerror="this.style.display='none'">
                     <span>SETTINGS</span>
                 </button>
             </div>
@@ -690,7 +713,6 @@
 
         <!-- Terminal Main Area -->
         <div class="terminal-container" id="terminal-container">
-            <!-- Drag and Drop Overlay Circle -->
             <div id="drop-overlay">
                 <div class="drop-circle-box">
                     <h3>[ DROP FILES HERE ]</h3>
@@ -708,13 +730,27 @@
                     <div>TOKENS: <span id="telemetry-tokens">0</span></div>
                 </div>
             </div>
-            
+
+            <!-- Header Info Box -->
             <div class="header-box">
                 <div>
                     <strong>Architecture Active:</strong> <span id="arch-provider">Cloudflare AI Cluster</span> active | 
                     <span>Vector & Embedding Distribution</span> synced
                 </div>
                 <div id="cluster-state">CLUSTER: ACTIVE</div>
+            </div>
+
+            <!-- Video Lock Target Bar -->
+            <div class="video-lock-bar" id="video-lock-bar">
+                <div>
+                    <strong>DURATION TARGET:</strong> <span>3 - 5 MINUTES (5 MIN LOCK)</span>
+                </div>
+                <div>
+                    <span class="lock-status-badge" id="lock-status-badge">LOCK: ACTIVE (5m 00s)</span>
+                </div>
+                <div>
+                    AUTO-ADAPT ADAPTER: <span class="lock-timer" id="adapter-mode-label">DRIFT RE-SEGMENT ENFORCED</span>
+                </div>
             </div>
 
             <div id="terminal"></div>
@@ -725,7 +761,7 @@
                 <div class="input-cluster">
                     <input type="file" id="file-selector" multiple onchange="handleFileSelect(event)">
                     <button class="plus-btn" onclick="document.getElementById('file-selector').click()" title="Upload Files">+</button>
-                    <input type="text" id="chat-input" placeholder="Type a prompt or code request..." onkeypress="handleKey(event)">
+                    <input type="text" id="chat-input" placeholder="Type prompt or video sync script..." onkeypress="handleKey(event)">
                     <button class="send-btn" onclick="sendMessage()">TRANSMIT</button>
                 </div>
             </div>
@@ -748,24 +784,24 @@
         const puterModelSelect = document.getElementById('puter-model-select');
         const archProviderLabel = document.getElementById('arch-provider');
         const filePreviewContainer = document.getElementById('file-preview-container');
+        const lockStatusBadge = document.getElementById('lock-status-badge');
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}`;
         let socket;
 
-        // Session Memory & Staged Files State
         let tabs = [];
         let activeTabId = null;
         let totalTokenCount = 0;
         let lastPingTime = Date.now();
-        let stagedFiles = []; // Holds queued files waiting to be sent
+        let stagedFiles = [];
         const MAX_RENDERED_DOM_NODES = 25;
 
-        // Load Preferences from localStorage on startup
         let preferences = {
             persistence: true,
             autoscroll: true,
             telemetry: true,
+            videoLock: true,
             provider: 'cloudflare',
             puterModel: 'gpt-5.6-luna'
         };
@@ -773,11 +809,12 @@
         function loadPreferences() {
             const savedPrefs = localStorage.getItem('cluster_preferences');
             if (savedPrefs) {
-                try { preferences = JSON.parse(savedPrefs); } catch(e) {}
+                try { preferences = Object.assign(preferences, JSON.parse(savedPrefs)); } catch(e) {}
             }
             document.getElementById('pref-persistence').checked = preferences.persistence;
             document.getElementById('pref-autoscroll').checked = preferences.autoscroll;
             document.getElementById('pref-telemetry').checked = preferences.telemetry;
+            document.getElementById('pref-video-lock').checked = preferences.videoLock;
             if (preferences.provider) aiProviderSelect.value = preferences.provider;
             if (preferences.puterModel) puterModelSelect.value = preferences.puterModel;
             updateTelemetryDisplay();
@@ -787,6 +824,7 @@
             preferences.persistence = document.getElementById('pref-persistence').checked;
             preferences.autoscroll = document.getElementById('pref-autoscroll').checked;
             preferences.telemetry = document.getElementById('pref-telemetry').checked;
+            preferences.videoLock = document.getElementById('pref-video-lock').checked;
             preferences.provider = aiProviderSelect.value;
             preferences.puterModel = puterModelSelect.value;
             localStorage.setItem('cluster_preferences', JSON.stringify(preferences));
@@ -796,6 +834,14 @@
         function updateTelemetryDisplay() {
             telemetryReadout.style.display = preferences.telemetry ? 'flex' : 'none';
             archProviderLabel.textContent = preferences.provider === 'cloudflare' ? 'Cloudflare AI Cluster' : `Puter AI (${preferences.puterModel})`;
+            
+            if (preferences.videoLock) {
+                lockStatusBadge.className = 'lock-status-badge';
+                lockStatusBadge.textContent = 'LOCK: ACTIVE (5m 00s)';
+            } else {
+                lockStatusBadge.className = 'lock-status-badge warning';
+                lockStatusBadge.textContent = 'LOCK: UNBOUND';
+            }
         }
 
         function loadSavedSessions() {
@@ -904,7 +950,6 @@
             }
         });
 
-        // Global Paste Listener (Ctrl+V files / image screenshots from clipboard)
         window.addEventListener('paste', (e) => {
             const clipboardItems = e.clipboardData.items;
             if (!clipboardItems) return;
@@ -915,7 +960,6 @@
                 if (item.kind === 'file') {
                     const file = item.getAsFile();
                     if (file) {
-                        // Give a nice name to pasted clipboard images
                         if (file.type.startsWith('image/') && (!file.name || file.name === 'image.png')) {
                             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
                             Object.defineProperty(file, 'name', { value: `clipboard_image_${timestamp}.png` });
@@ -926,7 +970,7 @@
             }
 
             if (pastedFiles.length > 0) {
-                e.preventDefault(); // Stop normal text paste if we caught files/images
+                e.preventDefault();
                 processFiles(pastedFiles);
             }
         });
@@ -1045,7 +1089,7 @@
             div.className = 'loading-node';
             div.innerHTML = `
                 <div class="spinner-dot"></div>
-                <span>[AI NODE PROCESSING STREAM...]</span>
+                <span>[AI NODE PROCESSING & BREAKING DOWN STREAM FOR 5-MIN LOCK...]</span>
             `;
             terminal.appendChild(div);
             if (preferences.autoscroll) {
@@ -1170,7 +1214,6 @@
                 });
 
                 fullPromptForAI = filePayloadText + (userTextInput || "Please review attached file(s).");
-                
                 userDisplayMessage = `<details class="file-collapse"><summary>📁 Attached Files: ${fileSummaryText} (Click to toggle content)</summary><pre>${stagedFiles.map(f => `--- ${f.name} ---\n` + f.content).join('\n\n')}</pre></details>\n\n` + (userTextInput || "");
                 
                 stagedFiles = [];
@@ -1180,7 +1223,12 @@
                 userDisplayMessage = userTextInput;
             }
 
-    chatInput.value = '';
+            // Append Video Duration Rule Constraints if Video Lock Preference is enabled
+            if (preferences.videoLock) {
+                fullPromptForAI += "\n\n[SYSTEM DURATION DIRECTIVE]: Ensure any generated scripts, breakdowns, timeline markers, or media output strictly fit the target window of 3 to 5 Minutes (with 5 Minutes locked as maximum length). If input content exceeds 5 minutes or is ~1 minute late/over, automatically break it down and re-segment into modular compatible 5-minute chunks with exact timestamps.";
+            }
+
+            chatInput.value = '';
             dispatchAIPrompt(fullPromptForAI, userDisplayMessage);
         }
 
@@ -1189,7 +1237,7 @@
             if (!currentTab) return;
 
             if (currentTab.messages.length <= 1 && currentTab.title === 'New Session') {
-                currentTab.title = chatInput.value.slice(0, 20) || 'Attached Files Session';
+                currentTab.title = chatInput.value.slice(0, 20) || 'Video Sync Session';
                 renderTabs();
             }
 
@@ -1255,7 +1303,6 @@
             }
         }
 
-        // Initialize Preferences, Sessions, and WebSocket
         loadPreferences();
         if (!loadSavedSessions()) {
             createNewTab('Main Cluster Session');
