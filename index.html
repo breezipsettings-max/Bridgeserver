@@ -52,6 +52,11 @@
             display: flex;
             margin: 20px;
             overflow: hidden;
+            transition: max-width 0.3s ease, width 0.3s ease;
+        }
+
+        .main-layout.admin-active {
+            max-width: 1520px; /* Expands site to the left/right to fit admin panel */
         }
 
         /* Top Yellow/Green Update Notification Banner */
@@ -302,6 +307,92 @@
             padding: 20px;
             background: var(--panel-bg);
             position: relative;
+        }
+
+        /* Right-Side Admin Panel (Hidden until unlocked via command) */
+        .admin-sidebar-right {
+            width: 0;
+            overflow: hidden;
+            background: #080a0f;
+            border-left: 1px solid var(--accent-green);
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+            transition: width 0.3s ease, padding 0.3s ease;
+            box-shadow: inset 5px 0 15px rgba(0,255,102,0.05);
+        }
+
+        .admin-sidebar-right.active {
+            width: 320px;
+            padding: 15px;
+            overflow-y: auto;
+        }
+
+        .admin-title {
+            color: var(--accent-green);
+            font-size: 0.85rem;
+            font-weight: bold;
+            letter-spacing: 1.5px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .admin-section {
+            margin-bottom: 15px;
+            font-size: 0.75rem;
+        }
+
+        .admin-section label {
+            color: var(--text-dim);
+            text-transform: uppercase;
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.65rem;
+            letter-spacing: 1px;
+        }
+
+        .admin-command-btn {
+            background: var(--terminal-bg);
+            color: var(--accent-cyan);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 8px 10px;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.75rem;
+            margin-bottom: 6px;
+            transition: all 0.2s;
+        }
+
+        .admin-command-btn:hover {
+            border-color: var(--accent-green);
+            background: rgba(0,255,102,0.05);
+            color: var(--accent-green);
+        }
+
+        .visitor-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            margin-top: 5px;
+        }
+
+        .visitor-table th, .visitor-table td {
+            border: 1px solid var(--border-color);
+            padding: 4px 6px;
+            text-align: left;
+        }
+
+        .visitor-table th {
+            color: var(--accent-cyan);
+            background: var(--terminal-bg);
         }
 
         .header {
@@ -605,7 +696,7 @@
             width: 100%;
             height: 100%;
             background: rgba(8, 10, 15, 0.85);
-            backdrop-filter: blur(4px);
+            backdrop-init: blur(4px);
             z-index: 100;
             display: none;
             justify-content: center;
@@ -767,6 +858,46 @@
                 </div>
             </div>
         </div>
+
+        <!-- Right-Side Admin Commands Panel (Appears upon entering valid /AN_CLUSTER = {KEY}) -->
+        <div class="admin-sidebar-right" id="admin-sidebar-right">
+            <div class="admin-title">
+                <span>ADMIN COMMANDS</span>
+                <button class="close-popup" onclick="toggleAdminPanel(false)">×</button>
+            </div>
+            
+            <div class="admin-section">
+                <label>Neuron Allocation Status</label>
+                <div id="neuron-status" style="color: var(--accent-cyan); font-weight: bold; margin-bottom: 8px;">
+                    10,000 / 10,000 Neurons (Resets in 24h)
+                </div>
+            </div>
+
+            <div class="admin-section">
+                <label>Clickable Admin Tools</label>
+                <button class="admin-command-btn" onclick="executeAdminAction('/timeout')">⚡ /timeout (Throttle Active IP)</button>
+                <button class="admin-command-btn" onclick="executeAdminAction('/purge')">🧹 /purge (Clear Bot Cache)</button>
+                <button class="admin-command-btn" onclick="executeAdminAction('/stats')">📊 /stats (Cluster Telemetry)</button>
+            </div>
+
+            <div class="admin-section">
+                <label>Active Visitors & IP Tracker</label>
+                <div style="max-height: 200px; overflow-y: auto;">
+                    <table class="visitor-table">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>IPv4 / IPv6</th>
+                                <th>Visits</th>
+                            </tr>
+                        </thead>
+                        <tbody id="visitor-table-body">
+                            <tr><td colspan="3" style="text-align:center;">Loading visitors...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Hidden Video & Canvas Processing Nodes -->
@@ -790,6 +921,9 @@
         const archProviderLabel = document.getElementById('arch-provider');
         const filePreviewContainer = document.getElementById('file-preview-container');
         const updateBanner = document.getElementById('update-banner');
+        const adminSidebarRight = document.getElementById('admin-sidebar-right');
+        const visitorTableBody = document.getElementById('visitor-table-body');
+        const neuronStatus = document.getElementById('neuron-status');
 
         const videoProcessor = document.getElementById('video-processor');
         const canvasProcessor = document.getElementById('canvas-processor');
@@ -805,6 +939,7 @@
         let lastPingTime = Date.now();
         let stagedFiles = [];
         let currentBuildVersion = null;
+        let isAdminUnlocked = false;
         const MAX_RENDERED_DOM_NODES = 25;
 
         let preferences = {
@@ -814,6 +949,31 @@
             provider: 'cloudflare',
             puterModel: 'gpt-5.6-luna'
         };
+
+        // Track Visitor IPs on startup using ipify
+        async function initVisitorTracking() {
+            let ipv4 = '';
+            let ipv6 = '';
+            try {
+                const res4 = await fetch('https://api.ipify.org?format=json');
+                const data4 = await res4.json();
+                ipv4 = data4.ip;
+            } catch(e) {}
+            try {
+                const res6 = await fetch('https://api6.ipify.org?format=json');
+                const data6 = await res6.json();
+                ipv6 = data6.ip;
+            } catch(e) {}
+
+            try {
+                await fetch('/api/register-visitor', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ipv4, ipv6 })
+                });
+            } catch(e) {}
+        }
+        initVisitorTracking();
 
         function loadPreferences() {
             const savedPrefs = localStorage.getItem('cluster_preferences');
@@ -843,7 +1003,6 @@
             archProviderLabel.textContent = preferences.provider === 'cloudflare' ? 'Cloudflare AI Cluster' : `Puter AI (${preferences.puterModel})`;
         }
 
-        /* Check version endpoint for live updates */
         async function checkSiteVersion() {
             try {
                 const res = await fetch('/api/version');
@@ -935,8 +1094,23 @@
             }
         }
 
+        function toggleAdminPanel(forceState) {
+            if (forceState) {
+                adminSidebarRight.classList.add('active');
+                mainLayout.classList.add('admin-active');
+            } else {
+                adminSidebarRight.classList.remove('active');
+                mainLayout.classList.remove('admin-active');
+            }
+        }
+
+        function executeAdminAction(actionCmd) {
+            chatInput.value = actionCmd;
+            sendMessage();
+        }
+
         window.addEventListener('click', (e) => {
-            if (!e.target.closest('.sidebar')) {
+            if (!e.target.closest('.sidebar') && !e.target.closest('.admin-sidebar-right')) {
                 toggleSettings(false);
             }
         });
@@ -1055,7 +1229,6 @@
             }
         }
 
-        /* 3-5 MINUTE HARD LOCK FOR VIDEO FILES ONLY */
         async function processVideoFile(file) {
             logSystemMessage(`System: Processing video file [${file.name}] under 3-5 Minute Lock rule...`);
             const objectUrl = URL.createObjectURL(file);
@@ -1066,8 +1239,7 @@
                 videoProcessor.onerror = (err) => reject(err);
             });
 
-            // Cap strictly to 300s (5 Minutes max lock)
-            const MAX_ALLOWED_SECONDS = 300; // 5 Minutes
+            const MAX_ALLOWED_SECONDS = 300;
             const rawDuration = videoProcessor.duration;
             const isLateOrOver = rawDuration > MAX_ALLOWED_SECONDS;
             const duration = Math.min(rawDuration, MAX_ALLOWED_SECONDS);
@@ -1078,7 +1250,6 @@
             canvasProcessor.width = canvasWidth;
             canvasProcessor.height = canvasHeight;
 
-            // Extract 1 frame every 3 seconds across the 5 minute window
             for (let t = 0; t <= duration; t += 3) {
                 videoProcessor.currentTime = t;
                 await new Promise((resolve) => {
@@ -1092,7 +1263,7 @@
 
             let breakdownNotice = "";
             if (isLateOrOver) {
-                breakdownNotice = ` [Note: Original video length was ${Math.round(rawDuration)}s (~1 min late/overflow). Bot automatically broke down and capped it to 5:00 max lock]`;
+                breakdownNotice = ` [Note: Original video length was ${Math.round(rawDuration)}s. Bot automatically broke down and capped it to 5:00 max lock]`;
             }
 
             stagedFiles.push({
@@ -1103,7 +1274,7 @@
                 type: 'video'
             });
 
-            logSystemMessage(`System: Successfully processed [${file.name}] (${frames.length} frames locked to 5 mins max). Ready for AI analysis.`);
+            logSystemMessage(`System: Successfully processed [${file.name}] (${frames.length} frames locked to 5 mins max).`);
             renderFilePreviews();
         }
 
@@ -1150,6 +1321,14 @@
                 removeLoadingIndicator();
                 try {
                     const data = JSON.parse(event.data);
+                    if (data.isAdmin) {
+                        isAdminUnlocked = true;
+                        toggleAdminPanel(true);
+                        updateVisitorTable(data.visitors);
+                        if (data.neurons) {
+                            neuronStatus.textContent = `${data.neurons.used} / ${data.neurons.total} Neurons Used`;
+                        }
+                    }
                     if (data.result) {
                         totalTokenCount += Math.round(data.result.length / 4);
                         telemetryTokens.textContent = totalTokenCount;
@@ -1179,6 +1358,23 @@
             };
         }
 
+        function updateVisitorTable(visitors) {
+            if (!visitors || visitors.length === 0) {
+                visitorTableBody.innerHTML = `<tr><td colspan="3" style="text-align:center;">No visitors recorded yet.</td></tr>`;
+                return;
+            }
+            visitorTableBody.innerHTML = '';
+            visitors.forEach(v => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${v.user}</strong></td>
+                    <td style="font-size: 0.65rem;">IPv4: ${v.ipv4}<br>IPv6: ${v.ipv6}</td>
+                    <td>${v.visits}</td>
+                `;
+                visitorTableBody.appendChild(tr);
+            });
+        }
+
         function showLoadingIndicator() {
             removeLoadingIndicator();
             const div = document.createElement('div');
@@ -1186,7 +1382,7 @@
             div.className = 'loading-node';
             div.innerHTML = `
                 <div class="spinner-dot"></div>
-                <span>[AI NODE PROCESSING MEDIA STREAM...]</span>
+                <span>[AI NODE PROCESSING STREAM...]</span>
             `;
             terminal.appendChild(div);
             if (preferences.autoscroll) {
@@ -1232,7 +1428,7 @@
                     
                     const prefix = document.createElement('strong');
                     prefix.style.color = 'var(--accent-cyan)';
-                    prefix.textContent = 'ADMIN: ';
+                    prefix.textContent = 'USER: '; // Stripped ADMIN label from logs per request
                     div.appendChild(prefix);
 
                     const contentDiv = document.createElement('div');
@@ -1388,6 +1584,14 @@
                     .then(res => res.json())
                     .then(data => {
                         removeLoadingIndicator();
+                        if (data.isAdmin) {
+                            isAdminUnlocked = true;
+                            toggleAdminPanel(true);
+                            updateVisitorTable(data.visitors);
+                            if (data.neurons) {
+                                neuronStatus.textContent = `${data.neurons.used} / ${data.neurons.total} Neurons Used`;
+                            }
+                        }
                         if (data.success) {
                             totalTokenCount += Math.round(data.result.length / 4);
                             telemetryTokens.textContent = totalTokenCount;
