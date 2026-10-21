@@ -56,7 +56,7 @@
         }
 
         .main-layout.admin-active {
-            max-width: 1520px; /* Expands site to the left/right to fit admin panel */
+            max-width: 1520px;
         }
 
         /* Top Yellow/Green Update Notification Banner */
@@ -309,7 +309,7 @@
             position: relative;
         }
 
-        /* Right-Side Admin Panel (Hidden until unlocked via command) */
+        /* Right-Side Admin Panel */
         .admin-sidebar-right {
             width: 0;
             overflow: hidden;
@@ -859,7 +859,7 @@
             </div>
         </div>
 
-        <!-- Right-Side Admin Commands Panel (Appears upon entering valid /AN_CLUSTER = {KEY}) -->
+        <!-- Right-Side Admin Commands Panel -->
         <div class="admin-sidebar-right" id="admin-sidebar-right">
             <div class="admin-title">
                 <span>ADMIN COMMANDS</span>
@@ -887,7 +887,7 @@
                         <thead>
                             <tr>
                                 <th>User</th>
-                                <th>IPv4 / IPv6</th>
+                                <th>IP & Flag</th>
                                 <th>Visits</th>
                             </tr>
                         </thead>
@@ -950,26 +950,26 @@
             puterModel: 'gpt-5.6-luna'
         };
 
-        // Track Visitor IPs on startup using ipify
+        // Track Visitor IPs & Country Flags via ipwho.is
         async function initVisitorTracking() {
-            let ipv4 = '';
-            let ipv6 = '';
+            let ip = '';
+            let flag = '🏳️';
+            let type = 'IPv4';
             try {
-                const res4 = await fetch('https://api.ipify.org?format=json');
-                const data4 = await res4.json();
-                ipv4 = data4.ip;
-            } catch(e) {}
-            try {
-                const res6 = await fetch('https://api6.ipify.org?format=json');
-                const data6 = await res6.json();
-                ipv6 = data6.ip;
+                const res = await fetch('https://ipwho.is/');
+                const data = await res.json();
+                if (data.success) {
+                    ip = data.ip;
+                    flag = data.flag && data.flag.emoji ? data.flag.emoji : '🏳️';
+                    type = data.type || 'IPv4';
+                }
             } catch(e) {}
 
             try {
                 await fetch('/api/register-visitor', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ipv4, ipv6 })
+                    body: JSON.stringify({ ip, flag, type })
                 });
             } catch(e) {}
         }
@@ -1368,7 +1368,7 @@
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td><strong>${v.user}</strong></td>
-                    <td style="font-size: 0.65rem;">IPv4: ${v.ipv4}<br>IPv6: ${v.ipv6}</td>
+                    <td style="font-size: 0.7rem;">${v.ip} ${v.flag}</td>
                     <td>${v.visits}</td>
                 `;
                 visitorTableBody.appendChild(tr);
@@ -1428,7 +1428,7 @@
                     
                     const prefix = document.createElement('strong');
                     prefix.style.color = 'var(--accent-cyan)';
-                    prefix.textContent = 'USER: '; // Stripped ADMIN label from logs per request
+                    prefix.textContent = 'USER: ';
                     div.appendChild(prefix);
 
                     const contentDiv = document.createElement('div');
