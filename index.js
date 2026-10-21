@@ -11,13 +11,23 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 const WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET;
+const ADMIN_CLUSTER_KEY = process.env.ADMIN_CLUSTER_KEY;
 
 if (!WEBHOOK_SECRET) {
     console.error("❌ CRITICAL ERROR: GITHUB_WEBHOOK_SECRET environment variable is not set!");
     process.exit(1);
 }
+
+if (!ADMIN_CLUSTER_KEY) {
+    console.warn("⚠️ WARNING: ADMIN_CLUSTER_KEY environment variable is not set. Admin commands will be locked.");
+}
+
 // Track site build version state for client refresh polling
 let currentSiteVersion = Date.now().toString();
+
+// In-memory Visitor & User Tracking (Anti-bot & IP Logging)
+const visitorList = [];
+let neuronAllocation = { total: 10000, used: 0, resetTime: Date.now() + (24 * 60 * 60 * 1000) };
 
 // Grab the raw body from incoming requests to safely verify the GitHub signature
 app.use(express.json({
@@ -65,6 +75,16 @@ async function callCloudflare(prompt) {
     throw new Error('No Cloudflare accounts configured in environment variables.');
   }
 
+  // Check neuron limits (10,000 free Neurons allocation resets every 24 hours)
+  if (Date.now() > neuronAllocation.resetTime) {
+      neuronAllocation.used = 0;
+      neuronAllocation.resetTime = Date.now() + (24 * 60 * 60 * 1000);
+  }
+  if (neuronAllocation.used >= neuronAllocation.total) {
+      throw new Error('Daily Neuron limit reached (10,000 free Neurons allocation exhausted). Resets in 24 hours.');
+  }
+  neuronAllocation.used += 10; // Increment per prompt token cost approximation
+
   const now = Date.now();
   let attempts = 0;
 
@@ -91,7 +111,7 @@ async function callCloudflare(prompt) {
     const url = `https://api.cloudflare.com/client/v4/accounts/${selectedAccount.id}/ai/run/${model}`;
 
     try {
-      console.log(`[Cluster Dispatch] Routing request through ${selectedAccount.label}...`);
+      console.log(`[Cluster Dispatch] Routing request through secure profile...`);
       
       const response = await fetch(url, {
         method: 'POST',
@@ -109,7 +129,7 @@ async function callCloudflare(prompt) {
       const data = await response.json();
 
       if (response.status === 429 || (!data.success && JSON.stringify(data.errors).toLowerCase().includes('rate'))) {
-        console.warn(`[Rate Limit] ${selectedAccount.label} hit limit. Locking out for 24 hours and rotating...`);
+        console.warn(`[Rate Limit] Profile hit limit. Locking out for 24 hours and rotating...`);
         accountCooldowns[selectedAccount.index] = Date.now() + COOLDOWN_DURATION_MS;
         attempts++;
         continue;
@@ -122,7 +142,7 @@ async function callCloudflare(prompt) {
       return data.result.response;
 
     } catch (error) {
-      console.error(`[Cluster Error] ${selectedAccount.label} failed: ${error.message}`);
+      console.error(`[Cluster Error] Profile failed: ${error.message}`);
       accountCooldowns[selectedAccount.index] = Date.now() + COOLDOWN_DURATION_MS;
       attempts++;
       if (attempts >= accounts.length) {
@@ -134,10 +154,53 @@ async function callCloudflare(prompt) {
   throw new Error('All Cloudflare accounts are currently rate-limited or locked out.');
 }
 
-// REST AI endpoint
+// Visitor registration endpoint to track IPs (IPv4 & IPv6 via ipify)
+app.post('/api/register-visitor', (req, res) => {
+    const { ipv4, ipv6 } = req.body;
+    const fallbackIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'Unknown';
+    
+    let existing = visitorList.find(v => v.ipv4 === ipv4 || v.ipv6 === ipv6 || v.fallbackIp === fallbackIp);
+    if (!existing) {
+        const userCode = `USER#${visitorList.length + 1}`;
+        existing = {
+            user: userCode,
+            ipv4: ipv4 || 'N/A',
+            ipv6: ipv6 || 'N/A',
+            fallbackIp: fallbackIp,
+            visits: 1,
+            lastSeen: Date.now(),
+            timeout: false
+        };
+        visitorList.push(existing);
+        console.log(`New visitor registered: ${userCode} [IPv4: ${existing.ipv4} | IPv6: ${existing.ipv6}]`);
+    } else {
+        existing.visits++;
+        existing.lastSeen = Date.now();
+    }
+    res.json({ success: true, user: existing.user });
+});
+
+// REST AI endpoint with Admin command interceptor (/AN_CLUSTER)
 app.post('/api/ask', async (req, res) => {
   const { prompt } = req.body;
   if (!prompt) return res.status(400).json({ error: 'Prompt is required.' });
+
+  // Intercept Secret Admin Command: /AN_CLUSTER = {KEY}
+  if (prompt.trim().startsWith('/AN_CLUSTER')) {
+      const parts = prompt.split('=');
+      const providedKey = parts[1] ? parts[1].trim() : '';
+      if (ADMIN_CLUSTER_KEY && providedKey === ADMIN_CLUSTER_KEY) {
+          return res.json({ 
+              success: true, 
+              isAdmin: true, 
+              visitors: visitorList,
+              neurons: neuronAllocation,
+              result: "🔓 **ADMIN ACCESS GRANTED**: Admin command panel unlocked on right side. Live visitor IPs and management tools active."
+          });
+      } else {
+          return res.status(403).json({ success: false, error: 'Access Denied: Invalid Admin Cluster Key.' });
+      }
+  }
 
   try {
     const result = await callCloudflare(prompt);
@@ -176,17 +239,14 @@ app.post('/webhook', verifyGitHubSignature, (req, res) => {
 
     console.log(`\n🔔 New Event Received: [${githubEvent ? githubEvent.toUpperCase() : 'UNKNOWN'}]`);
 
-    // Handle standard code push events
     if (githubEvent === 'push') {
         const branch = payload.ref ? payload.ref.replace('refs/heads/', '') : '';
         const repo = payload.repository ? payload.repository.full_name : 'Unknown Repo';
         const commitMsg = payload.head_commit ? payload.head_commit.message : 'No commit message';
-        const author = payload.head_commit && payload.head_commit.author ? payload.head_commit.author.username : 'Unknown';
 
-        console.log(`🟢 Code pushed to ${repo} on branch [${branch}] by @${author}`);
+        console.log(`🟢 Code pushed to ${repo} on branch [${branch}]`);
         console.log(`💬 Message: "${commitMsg}"`);
 
-        // If code is pushed to main branch, trigger application update version change and broadcast notice
         if (branch === 'main') {
             console.log('🚀 Triggering live site update notification pipeline...');
             currentSiteVersion = Date.now().toString();
@@ -201,34 +261,16 @@ app.post('/webhook', verifyGitHubSignature, (req, res) => {
         }
     }
 
-    // Handle Pull Request events
-    if (githubEvent === 'pull_request') {
-        const action = payload.action;
-        const prNumber = payload.number;
-        const prTitle = payload.pull_request ? payload.pull_request.title : '';
-        const user = payload.pull_request && payload.pull_request.user ? payload.pull_request.user.login : 'Unknown';
-
-        console.log(`🔹 Pull Request #${prNumber} was ${action} by @${user}`);
-        console.log(`📋 Title: "${prTitle}"`);
-    }
-
-    // Handle issue creation or comments
-    if (githubEvent === 'issues') {
-        console.log(`⚠️ Issue #${payload.issue.number} was ${payload.action}: "${payload.issue.title}"`);
-    }
-
     res.status(200).send('Webhook received and event logged successfully.');
 });
 
-// WebSocket connection handling with Idle detection & Heartbeat
+// WebSocket connection handling
 wss.on('connection', (ws) => {
     ws.isAlive = true;
     ws.lastActivity = Date.now();
-    const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 Minutes Idle threshold
+    const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
 
-    ws.on('pong', () => { 
-        ws.isAlive = true; 
-    });
+    ws.on('pong', () => { ws.isAlive = true; });
 
     ws.on('message', async (message) => {
         ws.lastActivity = Date.now();
@@ -240,6 +282,24 @@ wss.on('connection', (ws) => {
                 return;
             }
 
+            if (prompt.trim().startsWith('/AN_CLUSTER')) {
+                const parts = prompt.split('=');
+                const providedKey = parts[1] ? parts[1].trim() : '';
+                if (ADMIN_CLUSTER_KEY && providedKey === ADMIN_CLUSTER_KEY) {
+                    ws.send(JSON.stringify({ 
+                        success: true, 
+                        isAdmin: true, 
+                        visitors: visitorList,
+                        neurons: neuronAllocation,
+                        result: "🔓 **ADMIN ACCESS GRANTED**: Admin command panel unlocked on right side."
+                    }));
+                    return;
+                } else {
+                    ws.send(JSON.stringify({ success: false, error: 'Access Denied: Invalid Admin Cluster Key.' }));
+                    return;
+                }
+            }
+
             const result = await callCloudflare(prompt);
             ws.send(JSON.stringify({ success: true, result }));
         } catch (error) {
@@ -249,16 +309,13 @@ wss.on('connection', (ws) => {
 
     const idleCheck = setInterval(() => {
         if (Date.now() - ws.lastActivity > IDLE_TIMEOUT_MS) {
-            ws.send(JSON.stringify({ systemInfo: 'Connection entering IDLE state due to inactivity to conserve cluster resources.' }));
+            ws.send(JSON.stringify({ systemInfo: 'Connection entering IDLE state due to inactivity.' }));
         }
     }, 60000);
 
-    ws.on('close', () => {
-        clearInterval(idleCheck);
-    });
+    ws.on('close', () => { clearInterval(idleCheck); });
 });
 
-// Heartbeat ping interval (Every 20s to stay well within Render's 30s timeout)
 const interval = setInterval(() => {
     wss.clients.forEach((ws) => {
         if (ws.isAlive === false) return ws.terminate();
@@ -267,4 +324,4 @@ const interval = setInterval(() => {
     });
 }, 20000);
 
-server.listen(PORT, () => console.log(`🚀 Cluster Sync Engine Backend & GitHub Webhook Listener running on port ${PORT}`));
+server.listen(PORT, () => console.log(`🚀 Cluster Sync Engine Backend & Admin Cluster running on port ${PORT}`));
