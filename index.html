@@ -281,7 +281,6 @@
         .visitor-table th, .visitor-table td { border: 1px solid var(--border-color); padding: 5px 6px; text-align: left; vertical-align: middle; }
         .visitor-table th { color: var(--accent-cyan); background: var(--terminal-bg); }
 
-        /* Timeout button inside visitor table row */
         .timeout-btn {
             background: rgba(255, 51, 51, 0.1);
             border: 1px solid var(--accent-red);
@@ -882,11 +881,13 @@
                 mainLayout.classList.add('admin-active');
                 isAdminUnlocked = true;
                 localStorage.setItem('cluster_admin_unlocked', 'true');
+                renderActiveTerminal(); // Refresh labels to ADMIN when panel opens
             } else {
                 adminSidebarRight.classList.remove('active');
                 mainLayout.classList.remove('admin-active');
                 isAdminUnlocked = false;
                 localStorage.removeItem('cluster_admin_unlocked');
+                renderActiveTerminal(); // Revert labels to USER when closed
             }
         }
 
@@ -914,7 +915,6 @@
             }
         }
 
-        // Per-user Timeout Action Triggered from Visitor Table Button
         async function timeoutUser(username) {
             adminInlineResult.className = 'active';
             adminInlineResult.textContent = `[TIMEOUT] Processing ${username}...`;
@@ -958,7 +958,7 @@
                 if (msg.type === 'system') {
                     mdContent += `> *${msg.content}*\n\n`;
                 } else if (msg.type === 'user') {
-                    mdContent += `**ADMIN:** ${msg.content}\n\n`;
+                    mdContent += `**${isAdminUnlocked ? 'ADMIN' : 'USER'}:** ${msg.content}\n\n`;
                 } else if (msg.type === 'ai') {
                     mdContent += `**AI NODE:**\n${msg.content}\n\n---\n\n`;
                 }
@@ -1200,7 +1200,6 @@
             };
         }
 
-        // Updated Visitor Table with individual Timeout button per user
         function updateVisitorTable(visitors) {
             if (!visitors || visitors.length === 0) {
                 visitorTableBody.innerHTML = `<tr><td colspan="3" style="text-align:center;">No visitors recorded yet.</td></tr>`;
@@ -1278,7 +1277,8 @@
                     
                     const prefix = document.createElement('strong');
                     prefix.style.color = 'var(--accent-cyan)';
-                    prefix.textContent = 'USER: ';
+                    // Changes label dynamically to ADMIN when admin panel is active, otherwise USER
+                    prefix.textContent = isAdminUnlocked ? 'ADMIN: ' : 'USER: ';
                     div.appendChild(prefix);
 
                     const contentDiv = document.createElement('div');
