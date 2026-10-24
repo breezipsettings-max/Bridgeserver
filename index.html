@@ -1,1037 +1,1607 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLUSTER SYNC ENGINE AI TERMINAL</title>
+    <!-- Marked JS for clean markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Puter.js SDK for Puter AI option -->
+    <script src="https://js.puter.com/v2/"></script>
+    <style>
+        :root {
+            --bg-color: #080a0f;
+            --panel-bg: #0f1319;
+            --terminal-bg: #040609;
+            --accent-green: #00ff66;
+            --accent-cyan: #00e5ff;
+            --accent-amber: #ffaa00;
+            --accent-red: #ff3333;
+            --text-dim: #6b7c93;
+            --text-bright: #e2e8f0;
+            --border-color: #1a222d;
+            --code-bg: #020305;
+            --sidebar-width: 220px;
+        }
 
-<title>Steam AppID Lua & Manifest Generator | SteamTools Helper</title>
-<meta name="google-site-verification" content="H5VxEGD785KDLpVVjR7l3ORyS9Obix08WUj7eoW9LZs">
-<meta name="description" content="Generate SteamTools Lua config files and manifests from a Steam AppID into a clean ZIP archive.">
-<meta name="keywords" content="Steam AppID Lua generator, SteamTools Lua generator, Steam manifest generator, SteamDB AppID lookup, Steam config generator, appmanifest helper">
-<meta name="author" content="manifest lua generator">
-<meta name="publisher" content="manifest lua generator">
-<meta name="application-name" content="steam tools lua generator">
-<meta name="theme-color" content="#050608">
-<meta name="color-scheme" content="dark">
-<meta name="referrer" content="strict-origin-when-cross-origin">
-<meta name="format-detection" content="telephone=no">
+        * { box-sizing: border-box; }
 
-<link rel="canonical" href="/">
-<link rel="alternate" hreflang="en" href="/">
-<link rel="alternate" hreflang="x-default" href="/">
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-bright);
+            font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
 
-<link rel="icon" type="image/x-icon" href="/Lua_Brackets.ico">
-<link rel="apple-touch-icon" href="/Lua_Brackets.ico">
+        .main-layout {
+            position: relative;
+            width: 100%;
+            max-width: 1200px;
+            height: 92vh;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6), 0 0 20px rgba(0,255,102,0.04);
+            display: flex;
+            margin: 20px;
+            overflow: hidden;
+            transition: max-width 0.3s ease, width 0.3s ease;
+        }
 
-<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
-<meta name="googlebot" content="index, follow, max-image-preview:large, max-snippet:-1">
-<meta property="og:site_name" content="SteamTools Shadow Protocol">
-<meta property="og:title" content="Steam AppID Lua & Manifest Generator">
-<meta property="og:description" content="Enter a Steam AppID, preview metadata, and export a ZIP package containing your .lua config and .manifest file.">
-<meta property="og:type" content="website">
-<meta property="og:url" content="/">
-<meta property="og:locale" content="en_US">
-<meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Steam AppID Lua & Manifest Generator">
-<meta name="twitter:description" content="Fast Steam AppID lookup and local SteamTools Lua/Manifest ZIP export.">
+        .main-layout.admin-active { max-width: 1520px; }
 
-<!-- JSZip CDN for packaging .lua and .manifest into a ZIP archive -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+        #update-banner {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            background: linear-gradient(90deg, #ffaa00, #00ff66);
+            color: #000;
+            font-weight: bold;
+            font-size: 0.8rem;
+            padding: 8px 16px;
+            text-align: center;
+            z-index: 300;
+            box-shadow: 0 2px 10px rgba(0,255,102,0.3);
+            align-items: center;
+            justify-content: space-between;
+        }
 
-<!-- Microsoft Clarity Connected Tracking Link Kept -->
-<script type="text/javascript">
-    (function(c,l,a,r,i,t,y){
-        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-    })(window, document, "clarity", "script", "yn4akradt0");
-</script>
+        #update-banner.active { display: flex; }
 
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+        #update-banner button {
+            background: #000;
+            color: #00ff66;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            font-family: inherit;
+        }
 
-<style>
-    :root {
-        --bg: #050608;
-        --card: #0c0e12;
-        --accent: #ff5500; 
-        --accent-glow: rgba(255, 85, 0, 0.3);
-        --text: #ffffff;
-        --text-dim: #5c6370;
-        --border: rgba(255, 255, 255, 0.05);
-        --ease: cubic-bezier(0.25, 1, 0.5, 1);
-    }
+        .sidebar {
+            width: var(--sidebar-width);
+            background: #0a0d12;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 15px 10px;
+            position: relative;
+        }
 
-    * { margin:0; padding:0; box-sizing:border-box; cursor: none; }
-    
-    body {
-        background: var(--bg);
-        color: var(--text);
-        font-family: 'Inter', sans-serif;
-        height: 100vh;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        user-select: none;
-        cursor: none;
-        transition: filter 0.4s var(--ease);
-    }
+        .sidebar-top-cluster { display: flex; gap: 8px; margin-bottom: 15px; }
 
-    #starsCanvas {
-        position: fixed;
-        inset: 0;
-        z-index: -3;
-        pointer-events: none;
-    }
-    .nebula-wrap {
-        position: fixed;
-        inset: 0;
-        z-index: -2;
-        pointer-events: none;
-        overflow: hidden;
-    }
-    .nebula-band {
-        position: absolute;
-        top: -80%;
-        left: -20%;
-        width: 140%;
-        height: 260%;
-        transform: rotate(-30deg);
-        transform-origin: center center;
-    }
-    .nebula-band-1 {
-        background:
-            radial-gradient(ellipse 160px 800px at 50% 40%, rgba(78, 88, 115, 0.11) 0%, transparent 65%),
-            radial-gradient(ellipse 80px 520px at 54% 55%, rgba(100, 112, 140, 0.08) 0%, transparent 58%),
-            radial-gradient(ellipse 240px 1100px at 48% 65%, rgba(55, 65, 88, 0.06) 0%, transparent 72%);
-    }
-    .nebula-band-2 {
-        background:
-            radial-gradient(ellipse 28px 180px at 50% 32%, rgba(160, 170, 195, 0.04) 0%, transparent 48%),
-            radial-gradient(ellipse 450px 1500px at 50% 50%, rgba(35, 40, 58, 0.05) 0%, transparent 82%),
-            radial-gradient(ellipse 50px 300px at 46% 72%, rgba(120, 130, 155, 0.04) 0%, transparent 50%);
-    }
+        .new-chat-btn {
+            flex: 1;
+            background: transparent;
+            color: var(--accent-green);
+            border: 1px dashed var(--accent-green);
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
 
-    .seo-content {
-        position: absolute;
-        width: 1px; height: 1px; padding: 0; margin: -1px;
-        overflow: hidden; clip: rect(0, 0, 0, 0); border: 0;
-    }
+        .new-chat-btn:hover { background: var(--accent-green); color: #000; }
 
-    #cursor {
-        position: fixed; width: 10px; height: 10px; background: var(--accent);
-        border-radius: 50%; pointer-events: none; z-index: 9999; 
-        top: 0; left: 0; transform: translate3d(-50%, -50%, 0); will-change: transform;
-    }
-    #cursor-ring {
-        position: fixed; width: 30px; height: 30px; border: 1px solid var(--accent);
-        border-radius: 50%; pointer-events: none; z-index: 9998; 
-        top: 0; left: 0; transform: translate3d(-50%, -50%, 0); will-change: transform;
-    }
+        .tab-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
 
-    .ticker {
-        height: 30px; background: #000; border-bottom: 1px solid var(--border);
-        display: flex; align-items: center; font-family: 'JetBrains Mono', monospace;
-        font-size: 10px; letter-spacing: 1px; color: var(--text); overflow: hidden;
-    }
-    .ticker-content {
-        display: flex; white-space: nowrap; animation: ticker 30s linear infinite;
-    }
-    @keyframes ticker {
-        0% { transform: translateX(0); }
-        100% { transform: translateX(-50%); }
-    }
+        .tab-item {
+            padding: 10px 12px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            cursor: pointer;
+            border: 1px solid transparent;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: all 0.2s;
+        }
 
-    .container {
-        flex: 1; display: flex; align-items: center; justify-content: center;
-        position: relative; perspective: 1000px;
-    }
+        .tab-item:hover { background: rgba(255,255,255,0.03); color: var(--text-bright); }
 
-    .bg-lines {
-        position: absolute; inset: 0;
-        background: linear-gradient(90deg, transparent 49.5%, rgba(255,255,255,0.02) 50%, transparent 50.5%);
-        background-size: 10% 100%; z-index: -1;
-        mask-image: radial-gradient(circle, black, transparent 80%);
-    }
+        .tab-item.active {
+            background: var(--terminal-bg);
+            color: var(--accent-cyan);
+            border-color: var(--border-color);
+            border-left: 3px solid var(--accent-cyan);
+        }
 
-    .card {
-        width: 380px; background: var(--card); border: 1px solid var(--border);
-        padding: 40px; border-radius: 4px; box-shadow: 0 40px 100px rgba(0,0,0,0.8);
-        position: relative; z-index: 10; transition: transform 0.1s linear, border-color 0.4s var(--ease);
-    }
+        .sidebar-bottom { padding-top: 10px; border-top: 1px solid var(--border-color); margin-top: 10px; position: relative; display: flex; flex-direction: column; gap: 8px; }
 
-    .card.info-card {
-        width: 500px;
-        max-height: 80vh;
-        overflow-y: auto;
-    }
-    .card.info-card h3 {
-        color: var(--accent);
-        font-size: 14px;
-        margin-bottom: 12px;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-    }
-    .card.info-card p, .card.info-card li {
-        font-size: 13px;
-        color: #abb2bf;
-        line-height: 1.6;
-        margin-bottom: 12px;
-        font-family: 'JetBrains Mono', monospace;
-    }
-    .card.info-card ul {
-        padding-left: 20px;
-        margin-bottom: 15px;
-    }
-    .back-btn {
-        display: inline-block;
-        margin-top: 20px;
-        padding: 10px 20px;
-        background: var(--accent);
-        color: #fff;
-        text-decoration: none;
-        font-size: 10px;
-        font-family: 'JetBrains Mono', monospace;
-        letter-spacing: 2px;
-        text-transform: uppercase;
-        border-radius: 2px;
-        transition: opacity 0.2s;
-    }
-    .back-btn:hover { opacity: 0.8; }
+        .settings-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            width: 100%;
+            height: 42px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: var(--text-dim);
+            font-family: inherit;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
 
-    header h2 {
-        font-weight: 900; font-size: 12px; letter-spacing: 6px; text-transform: uppercase;
-        color: var(--text-dim); margin-bottom: 30px; display: flex; align-items: center; gap: 10px;
-    }
-    header h2::before { content:''; width: 20px; height: 1px; background: var(--accent); }
+        .settings-btn:hover { border-color: var(--accent-green); color: var(--accent-green); background: rgba(0,255,102,0.05); }
 
-    .input-field {
-        background: #000; border: 1px solid var(--border); padding: 20px;
-        width: 100%; color: var(--accent); font-family: 'JetBrains Mono', monospace;
-        font-size: 24px; outline: none; margin-bottom: 20px;
-    }
-    .input-field:focus { border-color: var(--accent); box-shadow: 0 0 20px var(--accent-glow); }
+        .reopen-admin-btn {
+            display: none;
+            background: rgba(0, 255, 102, 0.1);
+            border: 1px solid var(--accent-green);
+            color: var(--accent-green);
+            border-radius: 6px;
+            width: 100%;
+            height: 42px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-family: inherit;
+            font-size: 0.75rem;
+            font-weight: bold;
+            transition: all 0.2s;
+            box-shadow: 0 0 10px rgba(0,255,102,0.1);
+        }
 
-    #gameHud {
-        height: 0; opacity: 0; overflow: hidden; transition: all 0.3s var(--ease);
-        border-left: 2px solid var(--accent); padding-left: 0;
-    }
-    #gameHud.active { height: 260px; opacity: 1; padding-left: 20px; margin-bottom: 30px; }
-    .hud-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 5px; }
-    .hud-value { font-weight: 700; font-size: 16px; letter-spacing: -0.5px; line-height: 1.2; }
+        .reopen-admin-btn:hover { background: var(--accent-green); color: #000; }
+        .reopen-admin-btn.active { display: flex; }
 
-    #gThumb { width: 100%; height: 160px; object-fit: cover; border-radius: 2px; margin-bottom: 15px; background: #000; opacity: 0.8; border: 1px solid var(--border); }
+        #settings-popup {
+            position: absolute;
+            bottom: 65px; left: 10px; right: 10px;
+            background: #0f1319;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 14px;
+            box-shadow: 0 -5px 25px rgba(0,0,0,0.8);
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 200;
+        }
 
-    .btn {
-        width: 100%; background: var(--text); color: #000; border: none; padding: 20px;
-        font-weight: 900; text-transform: uppercase; font-size: 12px; letter-spacing: 2px;
-        transition: all 0.2s; display: flex; justify-content: space-between; align-items: center;
-    }
-    .btn:disabled { opacity: 0.1; }
-    .btn:not(:disabled):hover { background: var(--accent); color: white; transform: scale(1.02); }
+        #settings-popup.active { display: flex; }
 
-    #achievement {
-        position: fixed; bottom: 30px; right: 30px; background: #1a1d24; border: 1px solid #3d4450;
-        padding: 15px 25px; display: flex; align-items: center; gap: 15px;
-        transform: translateX(120%); transition: transform 0.6s var(--ease); z-index: 1000;
-    }
-    #achievement.show { transform: translateX(0); }
-    .ach-icon { width: 40px; height: 40px; background: var(--accent); border-radius: 4px; display: grid; place-items: center; font-weight: 900; color: white; }
+        .popup-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; }
+        .popup-header h3 { margin: 0; color: var(--accent-green); font-size: 0.75rem; letter-spacing: 1px; }
 
-    #cinemaCanvas {
-        position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9996; mix-blend-mode: screen;
-    }
-    #filmFlash {
-        position: fixed; inset: 0; background: #ffffff; opacity: 0; pointer-events: none; z-index: 10000;
-    }
-    
-    .cinema-bar {
-        position: fixed; left: 0; width: 100%; height: 0vh; background: #000000; z-index: 9995;
-        transition: height 0.8s cubic-bezier(0.25, 1, 0.3, 1);
-    }
-    .cinema-bar-top { top: 0; border-bottom: 1px solid rgba(255,255,255,0.02); }
-    .cinema-bar-bottom { bottom: 0; border-top: 1px solid rgba(255,255,255,0.02); }
-    
-    body.cinematic-active .cinema-bar { height: 11vh; }
-    body.cinematic-active { filter: contrast(1.12) brightness(0.85); }
-    body.cinematic-impact { filter: contrast(1.4) brightness(1.5) saturate(1.2); }
+        .close-popup { background: transparent; border: none; color: var(--text-dim); cursor: pointer; font-size: 1rem; }
+        .close-popup:hover { color: var(--text-bright); }
 
-    .btn.cine-build {
-        background: #0d1117 !important; color: #52647d !important;
-        border: 1px solid rgba(0, 150, 255, 0.3) !important;
-        box-shadow: 0 0 25px rgba(0, 110, 255, 0.15);
-        letter-spacing: 5px; font-weight: 700;
-    }
-    .btn.cine-flash-impact {
-        background: #ffffff !important; color: #000000 !important;
-        box-shadow: 0 0 100px #ffffff, 0 0 200px rgba(0, 150, 255, 0.6);
-        transform: scale(1.05);
-    }
+        .popup-section-title { font-size: 0.65rem; letter-spacing: 1px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px; }
 
-    .nav-stack {
-        position: fixed;
-        top: 58px;
-        right: 42px;
-        z-index: 6;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        align-items: flex-end;
-    }
+        .pref-item { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-bright); padding: 4px 0; }
+        .pref-item input[type="checkbox"] { accent-color: var(--accent-green); cursor: pointer; width: 14px; height: 14px; }
 
-    .steamdb-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 9px;
-        padding: 9px 16px 9px 12px;
-        background: rgba(5, 6, 8, 0.55);
-        border: 1px solid white;
-        color: var(--text-dim);
-        text-decoration: none;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 9px;
-        letter-spacing: 2.5px;
-        text-transform: uppercase;
-        width: 145px;
-        justify-content: flex-start;
-        transition: border-color 0.22s var(--ease), color 0.22s var(--ease), box-shadow 0.22s var(--ease), background 0.22s var(--ease);
-    }
-    .steamdb-btn:hover {
-        border-color: var(--accent);
-        color: var(--accent);
-        background: rgba(255, 85, 0, 0.06);
-        box-shadow: 0 0 18px var(--accent-glow);
-    }
-    .steamdb-btn .sdb-pulse {
-        width: 5px; height: 5px; border-radius: 50%;
-        background: var(--text-dim);
-        transition: background 0.22s, box-shadow 0.22s;
-        flex-shrink: 0;
-    }
-    .steamdb-btn:hover .sdb-pulse {
-        background: var(--accent);
-        box-shadow: 0 0 7px var(--accent);
-    }
-    
-    .social-links { margin-top: 40px; display: flex; gap: 20px; justify-content: center; }
-    .social-links a { color: var(--text-dim); text-decoration: none; font-size: 11px; border: 1px solid var(--border); padding: 10px 20px; border-radius: 4px; }
-    .social-links a:hover { border-color: var(--accent); color: var(--accent); }
-    
-    @media (max-width: 1024px) {
-        #cursor, #cursor-ring { display: none !important; }
-        body { cursor: auto !important; }
-    }
-</style>
+        .model-select {
+            background: var(--terminal-bg);
+            color: var(--accent-cyan);
+            border: 1px solid var(--border-color);
+            padding: 6px;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 0.75rem;
+            width: 100%;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .export-btn {
+            background: var(--terminal-bg);
+            color: var(--accent-cyan);
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            font-size: 0.75rem;
+            text-align: left;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+        .export-btn:hover { border-color: var(--accent-cyan); background: rgba(0,229,255,0.05); }
+
+        .terminal-container { flex: 1; display: flex; flex-direction: column; padding: 20px; background: var(--panel-bg); position: relative; }
+
+        .admin-sidebar-right {
+            width: 0;
+            overflow: hidden;
+            background: #080a0f;
+            border-left: 1px solid var(--accent-green);
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+            transition: width 0.3s ease, padding 0.3s ease;
+            box-shadow: inset 5px 0 15px rgba(0,255,102,0.05);
+        }
+
+        .admin-sidebar-right.active { width: 320px; padding: 15px; overflow-y: auto; }
+
+        .admin-title {
+            color: var(--accent-green);
+            font-size: 0.85rem;
+            font-weight: bold;
+            letter-spacing: 1.5px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .admin-section { margin-bottom: 15px; font-size: 0.75rem; }
+        .admin-section label { color: var(--text-dim); text-transform: uppercase; display: block; margin-bottom: 6px; font-size: 0.65rem; letter-spacing: 1px; }
+
+        .admin-command-btn {
+            background: var(--terminal-bg);
+            color: var(--accent-cyan);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 8px 10px;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.75rem;
+            margin-bottom: 6px;
+            transition: all 0.2s;
+        }
+
+        .admin-command-btn:hover { border-color: var(--accent-green); background: rgba(0,255,102,0.05); color: var(--accent-green); }
+
+        #admin-inline-result {
+            display: none;
+            background: var(--terminal-bg);
+            border: 1px solid var(--accent-green);
+            border-radius: 4px;
+            padding: 8px 10px;
+            margin-bottom: 10px;
+            font-size: 0.75rem;
+            color: var(--accent-green);
+            box-shadow: 0 0 10px rgba(0,255,102,0.15);
+        }
+
+        #admin-inline-result.active { display: block; }
+
+        .visitor-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; color: var(--text-dim); margin-top: 5px; }
+        .visitor-table th, .visitor-table td { border: 1px solid var(--border-color); padding: 5px 6px; text-align: left; vertical-align: middle; }
+        .visitor-table th { color: var(--accent-cyan); background: var(--terminal-bg); }
+
+        .timeout-btn {
+            background: rgba(255, 51, 51, 0.1);
+            border: 1px solid var(--accent-red);
+            color: var(--accent-red);
+            padding: 2px 6px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.65rem;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        .timeout-btn:hover { background: var(--accent-red); color: #000; }
+        .timeout-btn.timed-out {
+            background: var(--accent-amber);
+            border-color: var(--accent-amber);
+            color: #000;
+        }
+
+        .flag-icon {
+            width: 18px; height: 13px;
+            object-fit: cover;
+            border-radius: 2px;
+            margin-left: 4px;
+            vertical-align: middle;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+        .title-group { display: flex; align-items: center; gap: 12px; }
+
+        h1 {
+            font-size: 1.1rem;
+            letter-spacing: 1.5px;
+            color: var(--accent-green);
+            margin: 0;
+            text-shadow: 0 0 10px rgba(0,255,102,0.3);
+        }
+
+        .telemetry-readout { font-size: 0.75rem; color: var(--text-dim); display: flex; gap: 15px; }
+        .telemetry-readout span { color: var(--accent-cyan); }
+
+        #status {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            background: var(--accent-red);
+            box-shadow: 0 0 8px var(--accent-red);
+            transition: all 0.3s ease;
+        }
+
+        #status.online { background: var(--accent-green); box-shadow: 0 0 10px var(--accent-green); }
+
+        .header-box {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
+            margin-bottom: 12px;
+            font-size: 11px;
+            color: var(--text-dim);
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-box span { color: var(--accent-cyan); }
+        #cluster-state { color: var(--accent-green); font-weight: bold; }
+
+        #terminal {
+            flex: 1;
+            background: var(--terminal-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            overflow-y: auto;
+            padding: 18px;
+            margin-bottom: 15px;
+            box-shadow: inset 0 0 25px rgba(0,0,0,0.9);
+        }
+
+        #terminal::-webkit-scrollbar { width: 6px; }
+        #terminal::-webkit-scrollbar-track { background: var(--terminal-bg); }
+        #terminal::-webkit-scrollbar-thumb { background: #1a222d; border-radius: 3px; }
+
+        .message { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.02); font-size: 0.88rem; line-height: 1.6; }
+
+        .system { color: var(--text-dim); font-style: italic; }
+        .system-update {
+            color: var(--accent-amber);
+            font-weight: bold;
+            background: rgba(255, 170, 0, 0.1);
+            padding: 6px 10px;
+            border-left: 3px solid var(--accent-amber);
+            margin-bottom: 12px;
+            border-radius: 0 4px 4px 0;
+        }
+        .user-msg { color: var(--accent-cyan); font-weight: 600; }
+        .ai-msg { color: var(--text-bright); }
+        .ai-msg strong { color: var(--accent-green); }
+
+        /* Universal Collapsible Reasoning Box */
+        details.thinking-collapse {
+            background: rgba(0, 229, 255, 0.04);
+            border: 1px dashed var(--accent-cyan);
+            border-radius: 4px;
+            margin: 8px 0;
+            padding: 6px 10px;
+            font-size: 0.78rem;
+        }
+
+        details.thinking-collapse summary {
+            cursor: pointer;
+            color: var(--accent-cyan);
+            font-weight: bold;
+            outline: none;
+            letter-spacing: 0.5px;
+        }
+
+        details.thinking-collapse summary:hover {
+            color: var(--accent-green);
+        }
+
+        .thinking-body {
+            margin-top: 6px;
+            color: var(--text-dim);
+            font-style: italic;
+            white-space: pre-wrap;
+            border-left: 2px solid var(--accent-cyan);
+            padding-left: 8px;
+            line-height: 1.4;
+        }
+
+        details.file-collapse {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            margin: 6px 0;
+            padding: 6px 10px;
+        }
+
+        details.file-collapse summary { cursor: pointer; color: var(--accent-cyan); font-size: 0.8rem; outline: none; }
+        details.file-collapse summary:hover { color: var(--accent-green); }
+
+        .loading-node { display: flex; align-items: center; gap: 12px; color: var(--accent-green); font-style: italic; font-size: 0.85rem; margin-bottom: 15px; }
+
+        .spinner-dot {
+            width: 14px; height: 14px;
+            border: 2px solid var(--accent-green);
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin-glow 0.8s linear infinite;
+            box-shadow: 0 0 8px var(--accent-green);
+        }
+
+        @keyframes spin-glow { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .code-box {
+            position: relative;
+            background: var(--code-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            margin: 12px 0;
+            padding: 14px;
+            overflow-x: auto;
+        }
+
+        .code-box pre { margin: 0; color: var(--accent-green); font-family: 'Courier New', monospace; font-size: 0.85rem; white-space: pre-wrap; }
+
+        .copy-btn {
+            position: absolute;
+            top: 8px; right: 8px;
+            background: #11161d;
+            color: var(--accent-green);
+            border: 1px solid var(--accent-green);
+            font-size: 10px;
+            padding: 4px 9px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        .copy-btn:hover { background: var(--accent-green); color: #000; }
+
+        .input-wrapper {
+            display: flex;
+            flex-direction: column;
+            background: var(--terminal-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px;
+            gap: 8px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .input-wrapper:focus-within { border-color: var(--accent-green); box-shadow: 0 0 10px rgba(0,255,102,0.15); }
+
+        #file-preview-container { display: none; flex-wrap: wrap; gap: 6px; padding: 4px 6px; border-bottom: 1px solid var(--border-color); }
+        #file-preview-container.active { display: flex; }
+
+        .file-chip {
+            background: rgba(0, 255, 102, 0.08);
+            border: 1px solid rgba(0, 255, 102, 0.3);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            color: var(--accent-green);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .file-chip span { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .file-chip button { background: transparent; border: none; color: var(--text-dim); cursor: pointer; font-size: 0.85rem; padding: 0; }
+        .file-chip button:hover { color: var(--accent-red); }
+
+        .input-cluster { display: flex; gap: 10px; position: relative; }
+
+        .plus-btn {
+            background: transparent;
+            color: var(--accent-green);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            width: 42px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .plus-btn:hover { border-color: var(--accent-green); background: rgba(0,255,102,0.05); }
+
+        input[type="text"] { background: transparent; border: none; color: var(--accent-green); flex: 1; padding: 8px 10px; font-family: inherit; font-size: 0.95rem; outline: none; }
+
+        button.send-btn {
+            background: var(--accent-green);
+            color: #000;
+            border: none;
+            border-radius: 6px;
+            padding: 0 24px;
+            cursor: pointer;
+            font-weight: bold;
+            font-family: inherit;
+            letter-spacing: 1px;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+
+        button.send-btn:hover { opacity: 0.9; }
+        button.send-btn:active { transform: scale(0.98); }
+
+        #drop-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(8, 10, 15, 0.85);
+            z-index: 100;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        #drop-overlay.active { display: flex; }
+
+        .drop-circle-box {
+            width: 320px; height: 320px;
+            border: 3px dashed var(--accent-green);
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            background: rgba(4, 6, 9, 0.7);
+            color: var(--accent-green);
+            padding: 20px;
+        }
+        #file-selector { display: none; }
+    </style>
 </head>
 <body>
-
-<main class="seo-content" aria-label="Steam AppID Lua and Manifest generator summary">
-    <h1>Steam AppID Lua & Manifest Generator</h1>
-    <p>SteamTools Shadow Protocol is a browser-based AppID helper that generates a local Lua configuration file and manifest package.</p>
-</main>
-
-<div id="cursor"></div>
-<div id="cursor-ring"></div>
-
-<div class="cinema-bar cinema-bar-top"></div>
-<div class="cinema-bar cinema-bar-bottom"></div>
-<div id="filmFlash"></div>
-<canvas id="cinemaCanvas"></canvas>
-<canvas id="starsCanvas"></canvas>
-
-<div class="nebula-wrap">
-    <div class="nebula-band nebula-band-1"></div>
-    <div class="nebula-band nebula-band-2"></div>
-</div>
-
-<div class="nav-stack">
-    <a id="steamDbBtn" href="https://www.steamdb.info/" target="_blank" rel="noopener" class="steamdb-btn">
-        <span class="sdb-pulse"></span>
-        <span>SteamDB</span>
-    </a>
-    <a href="/faq" class="steamdb-btn">
-        <span class="sdb-pulse"></span>
-        <span>FAQ Protocol</span>
-    </a>
-    <a href="/app" class="steamdb-btn">
-        <span class="sdb-pulse"></span>
-        <span>App Spec</span>
-    </a>
-    <a href="/website" class="steamdb-btn">
-        <span class="sdb-pulse"></span>
-        <span>Website Info</span>
-    </a>
-    <a href="/breadcrumb" class="steamdb-btn">
-        <span class="sdb-pulse"></span>
-        <span>Breadcrumbs</span>
-    </a>
-</div>
-
-<nav class="ticker">
-    <div class="ticker-content">
-        &nbsp; [SYSTEM_ONLINE] &nbsp; • &nbsp; MANIFEST_ZIP_EXPORT: ENABLED &nbsp; • &nbsp; STATUS: AUTHORITATIVE &nbsp; • &nbsp;
-    </div>
-</nav>
-
-<div class="container">
-    <div class="bg-lines"></div>
-    <article class="card" id="mainCard">
-        <header><h2>Manifest_Generator</h2></header>
-        <input type="number" class="input-field" id="appId" placeholder="APP_ID" autocomplete="off">
-        <div id="gameHud">
-            <img id="gThumb" src="" alt="Thumbnail" style="display:none">
-            <div class="hud-label">Protocol_Detected</div>
-            <div class="hud-value" id="gName">SCANNING...</div>
-            <div class="hud-value" style="font-size:10px; color:var(--accent); margin-top:4px" id="gStatus">LOCAL_SYNC</div>
+    <div class="main-layout" id="main-layout">
+        <div id="update-banner">
+            <span>⚠️ System Notice: Site is being Updated! Please refresh to apply the Updated Version!</span>
+            <button onclick="window.location.reload()">REFRESH NOW</button>
         </div>
-        <button class="btn" id="dlBtn" disabled>
-            <span>Generate ZIP Package</span><span>→</span>
-        </button>
-    </article>
-</div>
 
-<div id="achievement">
-    <div class="ach-icon">!</div>
-    <div class="ach-text">
-        <div style="color:var(--accent); font-size:10px; font-weight:800; text-transform:uppercase;">Achievement Unlocked</div>
-        <div style="font-weight:600; font-size:14px;">Manifest Master</div>
+        <div class="sidebar">
+            <div id="settings-popup">
+                <div class="popup-header">
+                    <h3>CONFIG & PREFERENCES</h3>
+                    <button class="close-popup" onclick="toggleSettings(false)">×</button>
+                </div>
+                
+                <div class="popup-section-title">AI Provider Engine</div>
+                <select id="ai-provider-select" class="model-select" onchange="savePreferences()">
+                    <option value="cloudflare">CLOUDFLARE AI (Rotating Profiles)</option>
+                    <option value="puter">PUTER AI (Multi-Model)</option>
+                </select>
+
+                <div class="popup-section-title">Puter AI Model Selection</div>
+                <select id="puter-model-select" class="model-select" onchange="savePreferences()">
+                    <option value="gpt-5.6-luna">GPT-5.6 Luna</option>
+                    <option value="claude-sonnet-5-5">Claude Sonnet 5.5</option>
+                    <option value="grok-4-fast">xAI Grok 4 Fast</option>
+                    <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                    <option value="deepseek-flash">DeepSeek V4.1 Flash</option>
+                    <option value="deepseek-v4-pro">DeepSeek V4 Pro</option>
+                    <option value="gpt-6-luna">OpenAI GPT-6 Luna</option>
+                </select>
+
+                <div class="popup-section-title">Preferences</div>
+                <div class="pref-item">
+                    <span>Session Persistence</span>
+                    <input type="checkbox" id="pref-persistence" checked onchange="savePreferences()">
+                </div>
+                <div class="pref-item">
+                    <span>Auto-Scroll Lock</span>
+                    <input type="checkbox" id="pref-autoscroll" checked onchange="savePreferences()">
+                </div>
+                <div class="pref-item">
+                    <span>Live Telemetry Readout</span>
+                    <input type="checkbox" id="pref-telemetry" checked onchange="savePreferences()">
+                </div>
+                <div style="border-top: 1px solid var(--border-color); margin-top: 4px; padding-top: 8px;">
+                    <button class="export-btn" onclick="exportChatMarkdown()">📥 Export Active Chat</button>
+                </div>
+            </div>
+
+            <div class="sidebar-top-cluster">
+                <button class="new-chat-btn" onclick="createNewTab()">+ NEW CHAT</button>
+            </div>
+            <div class="tab-list" id="tab-list"></div>
+            <div class="sidebar-bottom">
+                <button class="reopen-admin-btn" id="reopen-admin-btn" onclick="toggleAdminPanel(true)">
+                    <span>⚡ ADMIN PANEL</span>
+                </button>
+                <button class="settings-btn" onclick="toggleSettings()" title="Settings">
+                    <span>SETTINGS</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="terminal-container" id="terminal-container">
+            <div id="drop-overlay">
+                <div class="drop-circle-box">
+                    <h3>[ DROP FILES HERE ]</h3>
+                    <p>Release to scan and queue files or videos for AI transmission</p>
+                </div>
+            </div>
+
+            <div class="header">
+                <div class="title-group">
+                    <div id="status"></div>
+                    <h1>CLUSTER SYNC ENGINE AI</h1>
+                </div>
+                <div class="telemetry-readout" id="telemetry-readout">
+                    <div>PING: <span id="telemetry-ping">--ms</span></div>
+                    <div>TOKENS: <span id="telemetry-tokens">0</span></div>
+                </div>
+            </div>
+
+            <div class="header-box">
+                <div>
+                    <strong>Architecture Active:</strong> <span id="arch-provider">Cloudflare AI Cluster</span> active | 
+                    <span>Vector & Embedding Distribution</span> synced
+                </div>
+                <div id="cluster-state">CLUSTER: ACTIVE</div>
+            </div>
+
+            <div id="terminal"></div>
+            
+            <div class="input-wrapper">
+                <div id="file-preview-container"></div>
+                <div class="input-cluster">
+                    <input type="file" id="file-selector" multiple accept="image/*,video/*,.txt,.md,.js,.json,.html,.css,.py" onchange="handleFileSelect(event)">
+                    <button class="plus-btn" onclick="document.getElementById('file-selector').click()" title="Upload Files or Video">+</button>
+                    <input type="text" id="chat-input" placeholder="Type prompt or code request..." onkeypress="handleKey(event)">
+                    <button class="send-btn" onclick="sendMessage()">TRANSMIT</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="admin-sidebar-right" id="admin-sidebar-right">
+            <div class="admin-title">
+                <span>ADMIN COMMANDS</span>
+                <button class="close-popup" onclick="toggleAdminPanel(false)">×</button>
+            </div>
+            
+            <div class="admin-section">
+                <label>Neuron Allocation Status</label>
+                <div id="neuron-status" style="color: var(--accent-cyan); font-weight: bold; margin-bottom: 8px;">
+                    140 / 10,000 Neurons Used (Resets in 24h)
+                </div>
+            </div>
+
+            <div class="admin-section">
+                <label>Admin Tools (Inline Box)</label>
+                <div id="admin-inline-result">Ready...</div>
+
+                <button class="admin-command-btn" onclick="executeInlineAdminAction('/purge', '🧹 CACHE PURGE')">🧹 /purge (Clear Bot Cache)</button>
+                <button class="admin-command-btn" onclick="executeInlineAdminAction('/stats', '📊 TELEMETRY')">📊 /stats (Cluster Telemetry)</button>
+            </div>
+
+            <div class="admin-section">
+                <label>Active Visitors & Per-User Timeout</label>
+                <div style="max-height: 200px; overflow-y: auto;">
+                    <table class="visitor-table">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>IP & Flag</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="visitor-table-body">
+                            <tr><td colspan="3" style="text-align:center;">Loading visitors...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
-</div>
 
-<script>
-window.addEventListener('DOMContentLoaded', () => {
-    const path = window.location.pathname;
-    const card = document.getElementById('mainCard');
-    if (!card) return;
+    <video id="video-processor" style="display:none;" muted playsinline></video>
+    <canvas id="canvas-processor" style="display:none;"></canvas>
 
-    if (path === '/faq') {
-        card.className = 'card info-card';
-        card.innerHTML = `
-            <header><h2>Protocol FAQ</h2></header>
-            <h3>What does the Generator do?</h3>
-            <p>It turns a numeric Steam AppID into a ZIP file containing both the <code>.lua</code> configuration and the <code>.manifest</code> file.</p>
-            <a href="/" class="back-btn">← Back to Generator</a>
-        `;
-    } else if (path === '/app') {
-        card.className = 'card info-card';
-        card.innerHTML = `
-            <header><h2>App Specification</h2></header>
-            <h3>SteamTools Local Exporter</h3>
-            <p>Exports configured AppID packages containing local Lua parameters and depot manifests.</p>
-            <a href="/" class="back-btn">← Back to Generator</a>
-        `;
-    } else if (path === '/website') {
-        card.className = 'card info-card';
-        card.innerHTML = `
-            <header><h2>Website Info</h2></header>
-            <h3>Shadow Protocol Node</h3>
-            <p>Single-page deployment running high-speed client-side ZIP packaging.</p>
-            <a href="/" class="back-btn">← Back to Generator</a>
-        `;
-    } else if (path === '/breadcrumb') {
-        card.className = 'card info-card';
-        card.innerHTML = `
-            <header><h2>Breadcrumbs</h2></header>
-            <h3>Navigation Path</h3>
-            <ul>
-                <li>Home (/)</li>
-                <li>Manifest Generator (/)</li>
-            </ul>
-            <a href="/" class="back-btn">← Back to Generator</a>
-        `;
-    }
-});
+    <script>
+        const terminal = document.getElementById('terminal');
+        const statusIndicator = document.getElementById('status');
+        const chatInput = document.getElementById('chat-input');
+        const clusterState = document.getElementById('cluster-state');
+        const tabList = document.getElementById('tab-list');
+        const mainLayout = document.getElementById('main-layout');
+        const dropOverlay = document.getElementById('drop-overlay');
+        const settingsPopup = document.getElementById('settings-popup');
+        const telemetryReadout = document.getElementById('telemetry-readout');
+        const telemetryPing = document.getElementById('telemetry-ping');
+        const telemetryTokens = document.getElementById('telemetry-tokens');
+        const aiProviderSelect = document.getElementById('ai-provider-select');
+        const puterModelSelect = document.getElementById('puter-model-select');
+        const archProviderLabel = document.getElementById('arch-provider');
+        const filePreviewContainer = document.getElementById('file-preview-container');
+        const updateBanner = document.getElementById('update-banner');
+        const adminSidebarRight = document.getElementById('admin-sidebar-right');
+        const visitorTableBody = document.getElementById('visitor-table-body');
+        const neuronStatus = document.getElementById('neuron-status');
+        const adminInlineResult = document.getElementById('admin-inline-result');
+        const reopenAdminBtn = document.getElementById('reopen-admin-btn');
 
-const cursor = document.getElementById('cursor');
-const ring = document.getElementById('cursor-ring');
-let mouse = { x: -100, y: -100 };
-let dotPos = { x: -100, y: -100 };
-let ringPos = { x: -100, y: -100 };
+        const videoProcessor = document.getElementById('video-processor');
+        const canvasProcessor = document.getElementById('canvas-processor');
+        const ctxProcessor = canvasProcessor.getContext('2d');
 
-document.addEventListener('mousemove', (e) => {
-    mouse.x = e.clientX;
-    mouse.y = e.clientY;
-});
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}`;
+        let socket;
 
-function animatePointer() {
-    dotPos.x += (mouse.x - dotPos.x) * 0.4;
-    dotPos.y += (mouse.y - dotPos.y) * 0.4;
-    ringPos.x += (mouse.x - ringPos.x) * 0.15;
-    ringPos.y += (mouse.y - ringPos.y) * 0.15;
-    
-    cursor.style.transform = `translate3d(${dotPos.x}px, ${dotPos.y}px, 0) translate(-50%, -50%)`;
-    ring.style.transform = `translate3d(${ringPos.x}px, ${ringPos.y}px, 0) translate(-50%, -50%)`;
-    
-    requestAnimationFrame(animatePointer);
-}
-animatePointer();
+        let tabs = [];
+        let activeTabId = null;
+        let totalTokenCount = 0;
+        let lastPingTime = Date.now();
+        let stagedFiles = [];
+        let currentBuildVersion = null;
+        let isAdminUnlocked = localStorage.getItem('cluster_admin_unlocked') === 'true';
+        let hasUnlockedAdminEver = localStorage.getItem('cluster_has_admin_auth') === 'true';
+        const MAX_RENDERED_DOM_NODES = 25;
 
-const input = document.getElementById('appId');
-const hud = document.getElementById('gameHud');
-const dlBtn = document.getElementById('dlBtn');
-const card = document.getElementById('mainCard');
-const gName = document.getElementById('gName');
-const gStatus = document.getElementById('gStatus');
-const gThumb = document.getElementById('gThumb');
+        let preferences = {
+            persistence: true,
+            autoscroll: true,
+            telemetry: true,
+            provider: 'cloudflare',
+            puterModel: 'gpt-5.6-luna'
+        };
 
-let currentId = null;
-let currentName = "GAME_CONFIG";
-let cinematicEffectActive = false;
-
-let tiltX = 0, tiltY = 0;
-let shakeIntensity = 0;
-
-let audioCtx = null;
-let riserNodes = []; 
-
-function getAudioContext() {
-    if (audioCtx) return audioCtx;
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextClass) return null;
-    audioCtx = new AudioContextClass();
-    return audioCtx;
-}
-
-function makeDistortionCurve(amount) {
-    let k = typeof amount === 'number' ? amount : 50,
-        n_samples = 44100,
-        curve = new Float32Array(n_samples),
-        deg = Math.PI / 180,
-        i = 0,
-        x;
-    for ( ; i < n_samples; ++i ) {
-        x = i * 2 / n_samples - 1;
-        curve[i] = ( 3 + k ) * x * 20 * deg / ( Math.PI + k * Math.abs(x) );
-    }
-    return curve;
-}
-
-function createStadiumReverb(ctx) {
-    let length = ctx.sampleRate * 3.0;
-    let impulse = ctx.createBuffer(2, length, ctx.sampleRate);
-    let left = impulse.getChannelData(0);
-    let right = impulse.getChannelData(1);
-    for (let i = 0; i < length; i++) {
-        let decay = Math.exp(-i / (ctx.sampleRate * 0.8));
-        left[i] = (Math.random() * 2 - 1) * decay;
-        right[i] = (Math.random() * 2 - 1) * decay;
-    }
-    let convolver = ctx.createConvolver();
-    convolver.buffer = impulse;
-    return convolver;
-}
-
-function triggerCinematicRiser() {
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume();
-    
-    riserNodes = [];
-    const now = ctx.currentTime;
-    const duration = 1.4;
-
-    const dist = ctx.createWaveShaper();
-    dist.curve = makeDistortionCurve(40);
-    dist.oversample = '4x';
-
-    const subOsc = ctx.createOscillator();
-    const subGain = ctx.createGain();
-    subOsc.type = 'sawtooth';
-    subOsc.frequency.setValueAtTime(30, now);
-    subOsc.frequency.exponentialRampToValueAtTime(120, now + duration);
-    
-    subGain.gain.setValueAtTime(0.001, now);
-    subGain.gain.linearRampToValueAtTime(0.4, now + duration);
-
-    subOsc.connect(dist);
-    dist.connect(subGain);
-    subGain.connect(ctx.destination);
-    subOsc.start(now);
-    riserNodes.push({osc: subOsc, gain: subGain});
-
-    const highOsc = ctx.createOscillator();
-    const highGain = ctx.createGain();
-    highOsc.type = 'sine';
-    highOsc.frequency.setValueAtTime(400, now);
-    highOsc.frequency.exponentialRampToValueAtTime(4000, now + duration);
-    
-    highGain.gain.setValueAtTime(0.001, now);
-    highGain.gain.linearRampToValueAtTime(0.15, now + duration);
-    
-    highOsc.connect(highGain);
-    highGain.connect(ctx.destination);
-    highOsc.start(now);
-    riserNodes.push({osc: highOsc, gain: highGain});
-}
-
-function cutCinematicRiser() {
-    const ctx = audioCtx;
-    if (!ctx) return;
-    const now = ctx.currentTime;
-
-    riserNodes.forEach(node => {
-        try {
-            node.gain.gain.setValueAtTime(node.gain.gain.value, now);
-            node.gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-            setTimeout(() => { try { node.osc.stop(); } catch(e){} }, 60);
-        } catch (e) {}
-    });
-    riserNodes = [];
-}
-
-function playCinematicBraamBlast() {
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    const now = ctx.currentTime;
-
-    const compressor = ctx.createDynamicsCompressor();
-    compressor.threshold.setValueAtTime(-10, now);
-    compressor.knee.setValueAtTime(10, now);
-    compressor.ratio.setValueAtTime(15, now);
-    compressor.attack.setValueAtTime(0.002, now);
-    compressor.release.setValueAtTime(0.2, now);
-    compressor.connect(ctx.destination);
-
-    const reverb = createStadiumReverb(ctx);
-    const reverbGain = ctx.createGain();
-    reverbGain.gain.value = 0.6; 
-    reverb.connect(reverbGain);
-    reverbGain.connect(compressor);
-
-    const distortion = ctx.createWaveShaper();
-    distortion.curve = makeDistortionCurve(100); 
-    distortion.oversample = '4x';
-    distortion.connect(compressor);
-    distortion.connect(reverb); 
-
-    const metalStrikeOsc = ctx.createOscillator();
-    const modulatorOsc = ctx.createOscillator();
-    const modGain = ctx.createGain();
-    const strikeGain = ctx.createGain();
-
-    metalStrikeOsc.type = 'square';
-    metalStrikeOsc.frequency.setValueAtTime(120, now);
-    
-    modulatorOsc.type = 'sine';
-    modulatorOsc.frequency.setValueAtTime(600, now);
-    modulatorOsc.frequency.exponentialRampToValueAtTime(50, now + 0.2);
-    
-    modGain.gain.setValueAtTime(2000, now);
-    modGain.gain.exponentialRampToValueAtTime(10, now + 0.2);
-
-    modulatorOsc.connect(modGain);
-    modGain.connect(metalStrikeOsc.frequency); 
-
-    strikeGain.gain.setValueAtTime(1, now);
-    strikeGain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-
-    metalStrikeOsc.connect(strikeGain);
-    strikeGain.connect(distortion);
-
-    modulatorOsc.start(now);
-    metalStrikeOsc.start(now);
-    modulatorOsc.stop(now + 0.3);
-    metalStrikeOsc.stop(now + 0.3);
-
-    const subOsc = ctx.createOscillator();
-    const subGain = ctx.createGain();
-    subOsc.type = 'sine';
-    subOsc.frequency.setValueAtTime(60, now);
-    subOsc.frequency.exponentialRampToValueAtTime(20, now + 2.5); 
-
-    subGain.gain.setValueAtTime(1.5, now);
-    subGain.gain.exponentialRampToValueAtTime(0.001, now + 2.5);
-
-    subOsc.connect(subGain);
-    subGain.connect(compressor);
-    subOsc.start(now);
-    subOsc.stop(now + 2.5);
-
-    const braamFilter = ctx.createBiquadFilter();
-    braamFilter.type = 'lowpass';
-    braamFilter.Q.setValueAtTime(2, now);
-    braamFilter.frequency.setValueAtTime(3000, now);
-    braamFilter.frequency.exponentialRampToValueAtTime(80, now + 1.8);
-
-    const braamGain = ctx.createGain();
-    braamGain.gain.setValueAtTime(0.8, now);
-    braamGain.gain.exponentialRampToValueAtTime(0.001, now + 2.0);
-
-    const detuneOffsets = [-30, -20, -10, 0, 10, 20, 30];
-    const baseFreq = 41.20; 
-
-    detuneOffsets.forEach(detune => {
-        const osc = ctx.createOscillator();
-        osc.type = 'sawtooth';
-        osc.frequency.value = baseFreq;
-        osc.detune.value = detune;
-        osc.connect(braamFilter);
-        osc.start(now);
-        osc.stop(now + 2.0);
-    });
-
-    braamFilter.connect(braamGain);
-    braamGain.connect(distortion); 
-}
-
-let atmosphericMotes = [];
-const cvs = document.getElementById('cinemaCanvas');
-const cxx = cvs.getContext('2d');
-
-function configureCanvasBounds() {
-    cvs.width = window.innerWidth;
-    cvs.height = window.innerHeight;
-}
-window.addEventListener('resize', configureCanvasBounds);
-configureCanvasBounds();
-
-for (let i = 0; i < 45; i++) {
-    atmosphericMotes.push({
-        x: Math.random() * window.innerWidth,
-        y: Math.random() * window.innerHeight,
-        radius: Math.random() * 2.5 + 0.5,
-        velocityStyleY: -(Math.random() * 0.3 + 0.1),
-        velocityStyleX: (Math.random() - 0.5) * 0.15,
-        opacity: Math.random() * 0.5 + 0.1
-    });
-}
-
-function processRenderEngineLoop(flareIntensity, lensY) {
-    cxx.clearRect(0, 0, cvs.width, cvs.height);
-
-    cxx.save();
-    for (let mote of atmosphericMotes) {
-        mote.y += mote.velocityStyleY;
-        mote.x += mote.velocityStyleX;
-        if (mote.y < 0) mote.y = cvs.height;
-        if (mote.x < 0 || mote.x > cvs.width) mote.x = Math.random() * cvs.width;
-        cxx.beginPath();
-        cxx.arc(mote.x, mote.y, mote.radius, 0, Math.PI * 2);
-        cxx.fillStyle = `rgba(255, 255, 255, ${mote.opacity})`;
-        cxx.shadowBlur = 8;
-        cxx.shadowColor = '#ffffff';
-        cxx.fill();
-    }
-    cxx.restore();
-
-    if (flareIntensity > 0) {
-        cxx.save();
-        cxx.globalCompositeOperation = 'screen';
-        
-        const cardBox = card.getBoundingClientRect();
-        const centerX = cardBox.left + cardBox.width / 2;
-
-        let streakGradient = cxx.createLinearGradient(0, lensY, cvs.width, lensY);
-        streakGradient.addColorStop(0, 'rgba(0, 80, 255, 0)');
-        streakGradient.addColorStop(0.3, 'rgba(0, 110, 255, 0.25)');
-        streakGradient.addColorStop(0.46, 'rgba(0, 190, 255, 0.85)');
-        streakGradient.addColorStop(0.5, `rgba(255, 255, 255, ${flareIntensity})`);
-        streakGradient.addColorStop(0.54, 'rgba(0, 190, 255, 0.85)');
-        streakGradient.addColorStop(0.7, 'rgba(0, 110, 255, 0.25)');
-        streakGradient.addColorStop(1, 'rgba(0, 80, 255, 0)');
-
-        cxx.fillStyle = streakGradient;
-        cxx.fillRect(0, lensY - (22 * flareIntensity), cvs.width, 44 * flareIntensity);
-
-        let radialGlow = cxx.createRadialGradient(centerX, lensY, 0, centerX, lensY, 220 * flareIntensity);
-        radialGlow.addColorStop(0, `rgba(255, 255, 255, ${flareIntensity})`);
-        radialGlow.addColorStop(0.25, 'rgba(0, 160, 255, 0.45)');
-        radialGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        
-        cxx.fillStyle = radialGlow;
-        cxx.beginPath();
-        cxx.arc(centerX, lensY, 220 * flareIntensity, 0, Math.PI * 2);
-        cxx.fill();
-        cxx.restore();
-    }
-}
-
-function executeCinematicSequence() {
-    if (cinematicEffectActive) return false;
-    cinematicEffectActive = true;
-
-    document.body.classList.add('cinematic-active');
-    triggerCinematicRiser();
-
-    const sequenceStartTime = performance.now();
-    const timelineApex = 1400;
-    
-    const cardBox = card.getBoundingClientRect();
-    const lensTargetY = cardBox.top + cardBox.height / 2;
-
-    const timelineEngine = (now) => {
-        const elapsed = now - sequenceStartTime;
-        let activeFlare = 0;
-
-        if (elapsed < timelineApex) {
-            const progressRatio = elapsed / timelineApex;
-            setThunderButtonState('cine-build', `INITIALIZING [${Math.floor(progressRatio * 100)}%]`);
-            shakeIntensity = progressRatio * 2.5;
-            
-            if (elapsed > timelineApex - 250) {
-                activeFlare = (elapsed - (timelineApex - 250)) / 250;
-            }
-            
-            processRenderEngineLoop(activeFlare, lensTargetY);
-            requestAnimationFrame(timelineEngine);
-        } else {
-            cutCinematicRiser();
-            playCinematicBraamBlast();
-            
-            document.body.classList.remove('cinematic-active');
-            document.body.classList.add('cinematic-impact');
-            setThunderButtonState('cine-flash-impact', 'PROTOCOL_SECURED');
-
-            shakeIntensity = 28; 
-            const flashNode = document.getElementById('filmFlash');
-            flashNode.style.transition = 'none';
-            flashNode.style.opacity = '0.9';
-            
-            setTimeout(() => {
-                flashNode.style.transition = 'opacity 1.2s cubic-bezier(0.25, 1, 0.5, 1)';
-                flashNode.style.opacity = '0';
-                document.body.classList.remove('cinematic-impact');
-            }, 50);
-
-            let flashDiminishStart = performance.now();
-            const coolDownEngine = (coolDownNow) => {
-                const coolDownElapsed = coolDownNow - flashDiminishStart;
-                if (coolDownElapsed < 1200) {
-                    const decayFactor = 1 - (coolDownElapsed / 1200);
-                    processRenderEngineLoop(decayFactor * 1.2, lensTargetY);
-                    requestAnimationFrame(coolDownEngine);
-                } else {
-                    processRenderEngineLoop(0, lensTargetY);
-                    dlBtn.classList.remove('cine-build', 'cine-flash-impact');
-                    dlBtn.innerHTML = '<span>Generate ZIP Package</span><span>→</span>';
-                    cinematicEffectActive = false;
+        async function initVisitorTracking() {
+            let ip = '';
+            let flagImg = '';
+            let flagEmoji = '🏳️';
+            let country = 'Unknown';
+            let type = 'IPv4';
+            try {
+                const res = await fetch('https://ipwho.is/');
+                const data = await res.json();
+                if (data.success) {
+                    ip = data.ip;
+                    country = data.country || 'Unknown';
+                    type = data.type || 'IPv4';
+                    if (data.flag) {
+                        flagImg = data.flag.img || '';
+                        flagEmoji = data.flag.emoji || '🏳️';
+                    }
                 }
-            };
-            requestAnimationFrame(coolDownEngine);
+            } catch(e) {}
+
+            try {
+                const res = await fetch('/api/register-visitor', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip, flagImg, flagEmoji, country, type })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    if (data.visitors) updateVisitorTable(data.visitors);
+                    if (data.neurons) neuronStatus.textContent = `${data.neurons.used} / ${data.neurons.total} Neurons Used (Resets in 24h)`;
+                }
+            } catch(e) {}
         }
-    };
+        initVisitorTracking();
 
-    requestAnimationFrame(timelineEngine);
-    return true;
-}
-
-function setThunderButtonState(className, label) {
-    dlBtn.classList.remove('cine-build', 'cine-flash-impact');
-    if (className) dlBtn.classList.add(className);
-    dlBtn.innerHTML = `<span>${label}</span><span>→</span>`;
-}
-
-if (input) {
-    input.addEventListener('input', () => {
-        const val = input.value.trim();
-        
-        if (val.length > 1 && /^\d+$/.test(val)) {
-            currentId = val;
-            hud.classList.add('active');
-            dlBtn.disabled = false;
-            gName.innerText = "APPID_" + val;
-            gStatus.innerText = "LOCAL_CACHE_HIT";
-            gThumb.src = `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${val}/header.jpg`;
-            gThumb.style.display = "block";
-            document.getElementById('steamDbBtn').href = `https://www.steamdb.info/app/${val}/`;
-            fetchName(val);
-        } else {
-            hud.classList.remove('active');
-            dlBtn.disabled = true;
-            currentId = null;
-            document.getElementById('steamDbBtn').href = 'https://www.steamdb.info/';
-        }
-    });
-}
-
-async function fetchName(id) {
-    try {
-        const res = await fetch(`https://store.steampowered.com/api/appdetails?appids=${id}&filters=basic`);
-        const json = await res.json();
-        if (id === currentId && json[id]?.success) {
-            const data = json[id].data;
-            currentName = data.name.toUpperCase();
-            gName.innerText = currentName;
-            gStatus.innerText = "PROTOCOL_SYNC_OK";
-            if(data.header_image) gThumb.src = data.header_image;
-        }
-    } catch (e) {
-        if (id === currentId) gStatus.innerText = "OFFLINE_MODE_ACTIVE";
-    }
-}
-
-async function executeDownload() {
-    if (!currentId || currentId.length < 2 || isNaN(parseInt(currentId))) {
-        dlBtn.classList.add('shake');
-        setTimeout(() => dlBtn.classList.remove('shake'), 500);
-        gStatus.innerText = "INVALID_APPID";
-        return;
-    }
-
-    if (!executeCinematicSequence()) return;
-    
-    const appIdNum = parseInt(currentId);
-    const depotId = appIdNum + 1;
-    
-    function generateEncryptedKey(id) {
-        const seed = (id * 0x9e3779b97f4a7c15) & 0xFFFFFFFFFFFFFFFF;
-        let hex = Math.abs(seed).toString(16);
-        while (hex.length < 32) hex = '0' + hex;
-        let key = hex + hex.split('').reverse().join('');
-        if (key.length > 64) key = key.slice(0, 64);
-        if (key.length < 64) key = key.padEnd(64, 'f');
-        return key;
-    }
-    
-    function generateManifestId(id) {
-        const manifestNum = (id * 7124452876391) % 9999999999999999999;
-        let result = manifestNum.toString();
-        while (result.length < 19) result = '1' + result;
-        if (result.length > 19) result = result.slice(0, 19);
-        return result;
-    }
-    
-    const encryptedKey = generateEncryptedKey(appIdNum);
-    const manifestId = generateManifestId(appIdNum);
-    
-    const luaContent = `-- STEAMTOOLS SHADOW PROTOCOL CONFIG
--- Game: ${currentName !== "GAME_CONFIG" ? currentName : "APPID_" + currentId}
--- Generated: ${new Date().toLocaleString()}
-
-addappid(${currentId})
-addappid(${depotId}, 1, "${encryptedKey}")
-setManifestid(${depotId}, "${manifestId}", 0)`;
-
-    const manifestContent = `"SteamManifest"
-{
-    "AppID"        "${currentId}"
-    "DepotID"      "${depotId}"
-    "ManifestID"   "${manifestId}"
-    "EncryptedKey" "${encryptedKey}"
-    "Generated"    "${new Date().toISOString()}"
-}`;
-    
-    try {
-        const zip = new JSZip();
-        zip.file(`${currentId}.lua`, luaContent);
-        zip.file(`${currentId}.manifest`, manifestContent);
-
-        const zipBlob = await zip.generateAsync({ type: 'blob' });
-        const url = URL.createObjectURL(zipBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${currentId}.zip`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        const ach = document.getElementById('achievement');
-        setTimeout(() => { ach.classList.add('show'); }, 1400);
-        setTimeout(() => ach.classList.remove('show'), 5400);
-        
-        const originalStatus = gStatus.innerText;
-        setTimeout(() => { gStatus.innerText = "ZIP_PACKAGE_EXPORTED"; }, 1400);
-        setTimeout(() => {
-            if (currentId && gStatus.innerText === "ZIP_PACKAGE_EXPORTED") {
-                gStatus.innerText = originalStatus;
+        function loadPreferences() {
+            const savedPrefs = localStorage.getItem('cluster_preferences');
+            if (savedPrefs) {
+                try { preferences = Object.assign(preferences, JSON.parse(savedPrefs)); } catch(e) {}
             }
-        }, 4000);
-    } catch (error) {
-        gStatus.innerText = "DOWNLOAD_ERROR";
-    }
-}
+            document.getElementById('pref-persistence').checked = preferences.persistence;
+            document.getElementById('pref-autoscroll').checked = preferences.autoscroll;
+            document.getElementById('pref-telemetry').checked = preferences.telemetry;
+            if (preferences.provider) aiProviderSelect.value = preferences.provider;
+            if (preferences.puterModel) puterModelSelect.value = preferences.puterModel;
+            updateTelemetryDisplay();
+        }
 
-if (dlBtn) {
-    dlBtn.addEventListener('click', executeDownload);
-}
+        function savePreferences() {
+            preferences.persistence = document.getElementById('pref-persistence').checked;
+            preferences.autoscroll = document.getElementById('pref-autoscroll').checked;
+            preferences.telemetry = document.getElementById('pref-telemetry').checked;
+            preferences.provider = aiProviderSelect.value;
+            preferences.puterModel = puterModelSelect.value;
+            localStorage.setItem('cluster_preferences', JSON.stringify(preferences));
+            updateTelemetryDisplay();
+        }
 
-window.addEventListener('mousemove', (e) => {
-    tiltX = (window.innerWidth / 2 - e.clientX) / 35;
-    tiltY = (window.innerHeight / 2 - e.clientY) / 35;
-});
+        function updateTelemetryDisplay() {
+            telemetryReadout.style.display = preferences.telemetry ? 'flex' : 'none';
+            archProviderLabel.textContent = preferences.provider === 'cloudflare' ? 'Cloudflare AI Cluster' : `Puter AI (${preferences.puterModel})`;
+        }
 
-function spatialMatrixEngine() {
-    let currentShakeX = 0;
-    let currentShakeY = 0;
+        async function checkSiteVersion() {
+            try {
+                const res = await fetch('/api/version');
+                const data = await res.json();
+                if (currentBuildVersion === null) {
+                    currentBuildVersion = data.version;
+                } else if (data.version !== currentBuildVersion) {
+                    triggerUpdateNotice();
+                }
+            } catch(e) {}
+        }
 
-    if (shakeIntensity > 0) {
-        currentShakeX = (Math.random() - 0.5) * shakeIntensity;
-        currentShakeY = (Math.random() - 0.5) * shakeIntensity;
-        shakeIntensity *= 0.92; 
-        if (shakeIntensity < 0.05) shakeIntensity = 0;
-    }
+        function triggerUpdateNotice() {
+            updateBanner.classList.add('active');
+            logUpdateNotice("System Notice: Site is being Updated! Please refresh to apply the Updated Version!");
+        }
 
-    if (card) {
-        card.style.transform = `rotateY(${tiltX + currentShakeX}deg) rotateX(${-tiltY + currentShakeY}deg) scale(${1 + (shakeIntensity * 0.0015)})`;
-    }
-    requestAnimationFrame(spatialMatrixEngine);
-}
-requestAnimationFrame(spatialMatrixEngine);
+        function logUpdateNotice(text) {
+            const currentTab = getActiveTab();
+            if (currentTab) {
+                currentTab.messages.push({ type: 'update-notice', content: text });
+                renderActiveTerminal();
+                saveSessions();
+            }
+        }
 
-function backgroundCoreMoteAnimation() {
-    if (!cinematicEffectActive) {
-        processRenderEngineLoop(0, 0);
-    }
-    requestAnimationFrame(backgroundCoreMoteAnimation);
-}
-requestAnimationFrame(backgroundCoreMoteAnimation);
+        setInterval(checkSiteVersion, 10000);
 
-(function(){
-    const scvs = document.getElementById('starsCanvas');
-    if (!scvs) return;
-    const sctx = scvs.getContext('2d');
-    let stars = [];
+        function loadSavedSessions() {
+            if (!preferences.persistence) return false;
+            const savedTabs = localStorage.getItem('cluster_tabs');
+            const savedActiveId = localStorage.getItem('cluster_active_id');
+            if (savedTabs) {
+                try {
+                    tabs = JSON.parse(savedTabs);
+                    if (tabs.length > 0) {
+                        activeTabId = savedActiveId && tabs.some(t => t.id === savedActiveId) ? savedActiveId : tabs[0].id;
+                        renderTabs();
+                        renderActiveTerminal();
+                        if (isAdminUnlocked) {
+                            toggleAdminPanel(true);
+                        } else if (hasUnlockedAdminEver) {
+                            updateAdminReopenButtonVisibility();
+                        }
+                        return true;
+                    }
+                } catch(e) {}
+            }
+            return false;
+        }
 
-    function resize(){
-        scvs.width  = window.innerWidth;
-        scvs.height = window.innerHeight;
-        buildStars();
-    }
+        function saveSessions() {
+            if (!preferences.persistence) return;
+            localStorage.setItem('cluster_tabs', JSON.stringify(tabs));
+            localStorage.setItem('cluster_active_id', activeTabId);
+        }
 
-    function buildStars(){
-        stars = [];
-        const n = Math.floor((scvs.width * scvs.height) / 3800);
-        for(let i = 0; i < n; i++){
-            stars.push({
-                x: Math.random() * scvs.width,
-                y: Math.random() * scvs.height,
-                r: Math.random() * 1.3 + 0.15,
-                base: Math.random() * 0.65 + 0.1,
-                speed: Math.random() * 0.006 + 0.001,
-                phase: Math.random() * Math.PI * 2
+        function createNewTab(title = 'New Session') {
+            const tabId = 'tab_' + Date.now();
+            const newTab = { id: tabId, title, messages: [] };
+            tabs.push(newTab);
+            setActiveTab(tabId);
+            saveSessions();
+        }
+
+        function setActiveTab(tabId) {
+            activeTabId = tabId;
+            renderTabs();
+            renderActiveTerminal();
+            saveSessions();
+        }
+
+        function renderTabs() {
+            tabList.innerHTML = '';
+            tabs.forEach(t => {
+                const div = document.createElement('div');
+                div.className = `tab-item ${t.id === activeTabId ? 'active' : ''}`;
+                div.textContent = t.title;
+                div.onclick = () => setActiveTab(t.id);
+                tabList.appendChild(div);
             });
         }
-    }
 
-    let t = 0;
-    function draw(){
-        sctx.clearRect(0, 0, scvs.width, scvs.height);
-        t++;
-        for(const s of stars){
-            const a = s.base * (0.65 + 0.35 * Math.sin(t * s.speed + s.phase));
-            sctx.beginPath();
-            sctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-            sctx.fillStyle = `rgba(255,255,255,${a})`;
-            sctx.fill();
+        function getActiveTab() {
+            return tabs.find(t => t.id === activeTabId);
         }
-        requestAnimationFrame(draw);
-    }
 
-    resize();
-    draw();
-    window.addEventListener('resize', resize);
-})();
+        function toggleSettings(forceState) {
+            if (forceState !== undefined) {
+                if (forceState) settingsPopup.classList.add('active');
+                else settingsPopup.classList.remove('active');
+            } else {
+                settingsPopup.classList.toggle('active');
+            }
+        }
 
-const runtimeStyle = document.createElement('style');
-runtimeStyle.textContent = `
-    @keyframes shake {
-        0%, 100% { transform: translateX(0); }
-        25% { transform: translateX(-6px); }
-        75% { transform: translateX(6px); }
-    }
-    .shake { animation: shake 0.25s ease-in-out 2; }
-`;
-document.head.appendChild(runtimeStyle);
-</script>
+        function toggleAdminPanel(forceState) {
+            if (forceState) {
+                adminSidebarRight.classList.add('active');
+                mainLayout.classList.add('admin-active');
+                isAdminUnlocked = true;
+                hasUnlockedAdminEver = true;
+                localStorage.setItem('cluster_admin_unlocked', 'true');
+                localStorage.setItem('cluster_has_admin_auth', 'true');
+                renderActiveTerminal();
+            } else {
+                adminSidebarRight.classList.remove('active');
+                mainLayout.classList.remove('admin-active');
+                isAdminUnlocked = false;
+                localStorage.removeItem('cluster_admin_unlocked');
+                renderActiveTerminal();
+            }
+            updateAdminReopenButtonVisibility();
+        }
+
+        function updateAdminReopenButtonVisibility() {
+            if (hasUnlockedAdminEver && !isAdminUnlocked) {
+                reopenAdminBtn.classList.add('active');
+            } else {
+                reopenAdminBtn.classList.remove('active');
+            }
+        }
+
+        async function executeInlineAdminAction(actionCmd, toolName) {
+            adminInlineResult.className = 'active';
+            adminInlineResult.textContent = `[${toolName}] Executing...`;
+
+            try {
+                const res = await fetch('/api/ask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: actionCmd })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    adminInlineResult.textContent = `${toolName}: ${data.result}`;
+                    if (data.neurons) {
+                        neuronStatus.textContent = `${data.neurons.used} / ${data.neurons.total} Neurons Used (Resets in 24h)`;
+                    }
+                } else {
+                    adminInlineResult.textContent = `${toolName}: Failed.`;
+                }
+            } catch(e) {
+                adminInlineResult.textContent = `${toolName}: Connection Error.`;
+            }
+        }
+
+        async function timeoutUser(username) {
+            adminInlineResult.className = 'active';
+            adminInlineResult.textContent = `[TIMEOUT] Processing ${username}...`;
+
+            try {
+                const res = await fetch('/api/timeout-user', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user: username })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    adminInlineResult.textContent = data.message;
+                    if (data.visitors) updateVisitorTable(data.visitors);
+                    if (data.neurons) {
+                        neuronStatus.textContent = `${data.neurons.used} / ${data.neurons.total} Neurons Used (Resets in 24h)`;
+                    }
+                } else {
+                    adminInlineResult.textContent = `Timeout failed for ${username}.`;
+                }
+            } catch(e) {
+                adminInlineResult.textContent = `Connection error timing out ${username}.`;
+            }
+        }
+
+        window.addEventListener('click', (e) => {
+            if (!e.target.closest('.sidebar') && !e.target.closest('.admin-sidebar-right')) {
+                toggleSettings(false);
+            }
+        });
+
+        function exportChatMarkdown() {
+            const currentTab = getActiveTab();
+            if (!currentTab || currentTab.messages.length === 0) {
+                alert('No messages in active session to export.');
+                return;
+            }
+
+            let mdContent = `# Cluster Sync Engine AI - ${currentTab.title}\n\n`;
+            currentTab.messages.forEach(msg => {
+                if (msg.type === 'system') {
+                    mdContent += `> *${msg.content}*\n\n`;
+                } else if (msg.type === 'user') {
+                    mdContent += `**${isAdminUnlocked ? 'ADMIN' : 'USER'}:** ${msg.content}\n\n`;
+                } else if (msg.type === 'ai') {
+                    mdContent += `**AI NODE:**\n${msg.content}\n\n---\n\n`;
+                }
+            });
+
+            const blob = new Blob([mdContent], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentTab.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_export.md`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            toggleSettings(false);
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === '/' && document.activeElement !== chatInput) {
+                e.preventDefault();
+                chatInput.focus();
+            }
+        });
+
+        window.addEventListener('paste', (e) => {
+            const clipboardItems = e.clipboardData.items;
+            if (!clipboardItems) return;
+
+            let pastedFiles = [];
+            for (let i = 0; i < clipboardItems.length; i++) {
+                const item = clipboardItems[i];
+                if (item.kind === 'file') {
+                    const file = item.getAsFile();
+                    if (file) {
+                        if (file.type.startsWith('image/') && (!file.name || file.name === 'image.png')) {
+                            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                            Object.defineProperty(file, 'name', { value: `clipboard_image_${timestamp}.png` });
+                        }
+                        pastedFiles.push(file);
+                    }
+                }
+            }
+
+            if (pastedFiles.length > 0) {
+                e.preventDefault();
+                processFiles(pastedFiles);
+            }
+        });
+
+        let dragCounter = 0;
+        mainLayout.addEventListener('dragenter', (e) => { e.preventDefault(); dragCounter++; dropOverlay.classList.add('active'); });
+        mainLayout.addEventListener('dragleave', (e) => { e.preventDefault(); dragCounter--; if (dragCounter === 0) dropOverlay.classList.remove('active'); });
+        mainLayout.addEventListener('dragover', (e) => { e.preventDefault(); });
+        mainLayout.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dragCounter = 0;
+            dropOverlay.classList.remove('active');
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) processFiles(e.dataTransfer.files);
+        });
+
+        function handleFileSelect(event) {
+            if (event.target.files && event.target.files.length > 0) {
+                processFiles(event.target.files);
+                event.target.value = '';
+            }
+        }
+
+        async function processFiles(files) {
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+
+                if (file.type.startsWith('video/')) {
+                    await processVideoFile(file);
+                } else if (file.type.startsWith('image/')) {
+                    const compressedDataUrl = await compressImageFile(file);
+                    stagedFiles.push({
+                        name: file.name,
+                        size: (file.size / 1024).toFixed(1) + ' KB',
+                        content: `[IMAGE ATTACHMENT: ${file.name}]`,
+                        rawContent: compressedDataUrl,
+                        type: 'image'
+                    });
+                    renderFilePreviews();
+                } else {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        stagedFiles.push({
+                            name: file.name,
+                            size: (file.size / 1024).toFixed(1) + ' KB',
+                            content: e.target.result,
+                            type: 'text'
+                        });
+                        renderFilePreviews();
+                    };
+                    reader.readAsText(file);
+                }
+            }
+        }
+
+        // Canvas image downscaling & compression to prevent base64 context overflows
+        function compressImageFile(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 600;
+                        const MAX_HEIGHT = 600;
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > height) {
+                            if (width > MAX_WIDTH) {
+                                height *= MAX_WIDTH / width;
+                                width = MAX_WIDTH;
+                            }
+                        } else {
+                            if (height > MAX_HEIGHT) {
+                                width *= MAX_HEIGHT / height;
+                                height = MAX_HEIGHT;
+                            }
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.5));
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function processVideoFile(file) {
+            logSystemMessage(`System: Processing video file [${file.name}] under 3-5 Minute Lock rule...`);
+            const objectUrl = URL.createObjectURL(file);
+            videoProcessor.src = objectUrl;
+
+            await new Promise((resolve, reject) => {
+                videoProcessor.onloadedmetadata = () => resolve();
+                videoProcessor.onerror = (err) => reject(err);
+            });
+
+            const MAX_ALLOWED_SECONDS = 300;
+            const rawDuration = videoProcessor.duration;
+            const isLateOrOver = rawDuration > MAX_ALLOWED_SECONDS;
+            const duration = Math.min(rawDuration, MAX_ALLOWED_SECONDS);
+            
+            const frames = [];
+            const canvasWidth = 640;
+            const canvasHeight = (videoProcessor.videoHeight / videoProcessor.videoWidth) * 640 || 360;
+            canvasProcessor.width = canvasWidth;
+            canvasProcessor.height = canvasHeight;
+
+            for (let t = 0; t <= duration; t += 3) {
+                videoProcessor.currentTime = t;
+                await new Promise((resolve) => {
+                    videoProcessor.onseeked = () => resolve();
+                });
+                ctxProcessor.drawImage(videoProcessor, 0, 0, canvasWidth, canvasHeight);
+                frames.push(canvasProcessor.toDataURL('image/jpeg', 0.5));
+            }
+
+            URL.revokeObjectURL(objectUrl);
+
+            let breakdownNotice = "";
+            if (isLateOrOver) {
+                breakdownNotice = ` [Note: Original video length was ${Math.round(rawDuration)}s. Bot automatically broke down and capped it to 5:00 max lock]`;
+            }
+
+            stagedFiles.push({
+                name: file.name,
+                size: (file.size / (1024 * 1024)).toFixed(1) + ' MB',
+                content: `Video File "${file.name}" processed under 5-minute lock limit. Total frames: ${frames.length}.${breakdownNotice}`,
+                frames: frames,
+                type: 'video'
+            });
+
+            logSystemMessage(`System: Successfully processed [${file.name}] (${frames.length} frames locked to 5 mins max).`);
+            renderFilePreviews();
+        }
+
+        function renderFilePreviews() {
+            filePreviewContainer.innerHTML = '';
+            if (stagedFiles.length > 0) {
+                filePreviewContainer.classList.add('active');
+                stagedFiles.forEach((file, index) => {
+                    const chip = document.createElement('div');
+                    chip.className = 'file-chip';
+                    let icon = '📄';
+                    if (file.type === 'image') icon = '🖼️';
+                    if (file.type === 'video') icon = '🎬';
+                    chip.innerHTML = `
+                        <span>${icon} ${file.name} (${file.size})</span>
+                        <button onclick="removeStagedFile(${index})" title="Remove file">×</button>
+                    `;
+                    filePreviewContainer.appendChild(chip);
+                });
+            } else {
+                filePreviewContainer.classList.remove('active');
+            }
+        }
+
+        function removeStagedFile(index) {
+            stagedFiles.splice(index, 1);
+            renderFilePreviews();
+        }
+
+        function connectWebSocket() {
+            logSystemMessage('System: Establishing secure WebSocket tunnel...');
+            lastPingTime = Date.now();
+            socket = new WebSocket(wsUrl);
+
+            socket.onopen = () => {
+                const pingMs = Date.now() - lastPingTime;
+                telemetryPing.textContent = pingMs + 'ms';
+                logSystemMessage('System: Cluster node link established successfully.');
+                statusIndicator.classList.add('online');
+                clusterState.textContent = 'CLUSTER: ONLINE (1-10 ROTATION)';
+                if (isAdminUnlocked) toggleAdminPanel(true);
+            };
+
+            socket.onmessage = (event) => {
+                removeLoadingIndicator();
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.isAdmin) {
+                        toggleAdminPanel(true);
+                        if (data.visitors) updateVisitorTable(data.visitors);
+                        if (data.neurons) {
+                            neuronStatus.textContent = `${data.neurons.used} / ${data.neurons.total} Neurons Used (Resets in 24h)`;
+                        }
+                    }
+                    if (data.isAction) {
+                        adminInlineResult.className = 'active';
+                        adminInlineResult.textContent = `${data.title}: ${data.result}`;
+                        if (data.neurons) {
+                            neuronStatus.textContent = `${data.neurons.used} / ${data.neurons.total} Neurons Used (Resets in 24h)`;
+                        }
+                        return;
+                    }
+                    if (data.result) {
+                        totalTokenCount += Math.round(data.result.length / 4);
+                        telemetryTokens.textContent = totalTokenCount;
+                        renderFormattedMessage(data.result, 'ai-msg', data.thought || data.reasoning || '');
+                        if (data.neurons) {
+                            neuronStatus.textContent = `${data.neurons.used} / ${data.neurons.total} Neurons Used (Resets in 24h)`;
+                        }
+                    } else if (data.systemInfo) {
+                        logSystemMessage("System Notice: " + data.systemInfo);
+                        clusterState.textContent = 'CLUSTER: IDLE (SAVING TOKENS)';
+                    } else if (data.error) {
+                        logSystemMessage("Cluster Error: " + data.error);
+                    }
+                } catch (e) {
+                    logSystemMessage("System: Raw sync stream -> " + event.data);
+                }
+            };
+
+            socket.onerror = () => {
+                removeLoadingIndicator();
+                logSystemMessage('System Warning: WebSocket tunnel disruption detected.');
+            };
+
+            socket.onclose = () => {
+                removeLoadingIndicator();
+                logSystemMessage('System: Connection dropped. Reconnecting in 5s...');
+                statusIndicator.classList.remove('online');
+                clusterState.textContent = 'CLUSTER: RECONNECTING';
+                setTimeout(connectWebSocket, 5000);
+            };
+        }
+
+        function updateVisitorTable(visitors) {
+            if (!visitors || visitors.length === 0) {
+                visitorTableBody.innerHTML = `<tr><td colspan="3" style="text-align:center;">No visitors recorded yet.</td></tr>`;
+                return;
+            }
+            visitorTableBody.innerHTML = '';
+            visitors.forEach(v => {
+                const tr = document.createElement('tr');
+                const flagMarkup = v.flagImg 
+                    ? `<img src="${v.flagImg}" class="flag-icon" alt="Flag">` 
+                    : `${v.flagEmoji || '🏳️'} `;
+
+                const timeoutBtnClass = v.timeout ? 'timeout-btn timed-out' : 'timeout-btn';
+                const timeoutBtnText = v.timeout ? 'UNTIMEOUT' : 'TIMEOUT';
+
+                tr.innerHTML = `
+                    <td><strong>${v.user}</strong></td>
+                    <td style="font-size: 0.7rem; white-space: nowrap;">${v.ip} ${flagMarkup}</td>
+                    <td><button class="${timeoutBtnClass}" onclick="timeoutUser('${v.user}')">${timeoutBtnText}</button></td>
+                `;
+                visitorTableBody.appendChild(tr);
+            });
+        }
+
+        function showLoadingIndicator() {
+            removeLoadingIndicator();
+            const div = document.createElement('div');
+            div.id = 'loading-node';
+            div.className = 'loading-node';
+            div.innerHTML = `
+                <div class="spinner-dot"></div>
+                <span>[AI NODE PROCESSING STREAM...]</span>
+            `;
+            terminal.appendChild(div);
+            if (preferences.autoscroll) {
+                terminal.scrollTop = terminal.scrollHeight;
+            }
+        }
+
+        function removeLoadingIndicator() {
+            const el = document.getElementById('loading-node');
+            if (el) el.remove();
+        }
+
+        function logSystemMessage(text) {
+            const currentTab = getActiveTab();
+            if (currentTab) {
+                currentTab.messages.push({ type: 'system', content: text });
+                renderActiveTerminal();
+                saveSessions();
+            }
+        }
+
+        // HTML Escape Utility to Prevent XSS
+        function escapeHTML(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function renderActiveTerminal() {
+            terminal.innerHTML = '';
+            const currentTab = getActiveTab();
+            if (!currentTab) return;
+
+            const visibleMessages = currentTab.messages.slice(-MAX_RENDERED_DOM_NODES);
+
+            visibleMessages.forEach(msg => {
+                if (msg.type === 'system') {
+                    const div = document.createElement('div');
+                    div.className = 'message system';
+                    div.textContent = msg.content;
+                    terminal.appendChild(div);
+                } else if (msg.type === 'update-notice') {
+                    const div = document.createElement('div');
+                    div.className = 'message system-update';
+                    div.textContent = msg.content;
+                    terminal.appendChild(div);
+                } else if (msg.type === 'user') {
+                    const div = document.createElement('div');
+                    div.className = 'message user-msg';
+                    
+                    const prefix = document.createElement('strong');
+                    prefix.style.color = 'var(--accent-cyan)';
+                    prefix.textContent = isAdminUnlocked ? 'ADMIN: ' : 'USER: ';
+                    div.appendChild(prefix);
+
+                    const contentDiv = document.createElement('div');
+                    contentDiv.style.display = 'inline-block';
+                    contentDiv.style.width = '100%';
+                    contentDiv.innerHTML = marked.parse(msg.content);
+                    div.appendChild(contentDiv);
+
+                    terminal.appendChild(div);
+                } else if (msg.type === 'ai') {
+                    const div = document.createElement('div');
+                    div.className = 'message ai-msg';
+
+                    const prefix = document.createElement('strong');
+                    prefix.style.color = 'var(--accent-green)';
+                    prefix.textContent = 'AI NODE: ';
+                    div.appendChild(prefix);
+
+                    const contentDiv = document.createElement('div');
+                    contentDiv.style.display = 'inline-block';
+                    contentDiv.style.width = '100%';
+
+                    const thought = msg.thought || '';
+                    const finalText = msg.content || '';
+
+                    let renderedHTML = '';
+                    if (thought) {
+                        renderedHTML += `
+                            <details class="thinking-collapse">
+                                <summary>⚡ [ AI Thinking Process ]</summary>
+                                <div class="thinking-body">${escapeHTML(thought)}</div>
+                            </details>
+                        `;
+                    }
+                    renderedHTML += marked.parse(finalText);
+                    contentDiv.innerHTML = renderedHTML;
+
+                    const codeBlocks = contentDiv.querySelectorAll('pre');
+                    codeBlocks.forEach(pre => {
+                        const box = document.createElement('div');
+                        box.className = 'code-box';
+                        pre.parentNode.insertBefore(box, pre);
+                        box.appendChild(pre);
+
+                        const btn = document.createElement('button');
+                        btn.className = 'copy-btn';
+                        btn.textContent = 'COPY';
+                        btn.onclick = () => {
+                            navigator.clipboard.writeText(pre.textContent);
+                            btn.textContent = 'COPIED!';
+                            setTimeout(() => btn.textContent = 'COPY', 2000);
+                        };
+                        box.appendChild(btn);
+                    });
+
+                    div.appendChild(contentDiv);
+                    terminal.appendChild(div);
+                }
+            });
+
+            if (preferences.autoscroll) {
+                terminal.scrollTop = terminal.scrollHeight;
+            }
+        }
+
+        function renderFormattedMessage(markdownText, className, thought = '') {
+            const currentTab = getActiveTab();
+            if (currentTab) {
+                currentTab.messages.push({ type: 'ai', content: markdownText, thought: thought || '' });
+                renderActiveTerminal();
+                clusterState.textContent = 'CLUSTER: ACTIVE';
+                saveSessions();
+            }
+        }
+
+        function handleKey(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        function sendMessage() {
+            const userTextInput = chatInput.value.trim();
+            if (!userTextInput && stagedFiles.length === 0) return;
+
+            let fullPromptForAI = "";
+            let userDisplayMessage = "";
+
+            if (stagedFiles.length > 0) {
+                let filePayloadText = "";
+                let fileSummaryText = stagedFiles.map(f => f.name).join(', ');
+
+                stagedFiles.forEach(file => {
+                    if (file.type === 'video') {
+                        filePayloadText += `[VIDEO FILE ATTACHMENT]: ${file.name}\n${file.content}\n`;
+                    } else if (file.type === 'image') {
+                        filePayloadText += `[IMAGE ATTACHMENT: ${file.name}] Data URL attached.\n`;
+                    } else {
+                        filePayloadText += `Analyze and scan attached file contents from [${file.name}]:\n\n\`\`\`\n${file.content}\n\`\`\`\n\n`;
+                    }
+                });
+
+                fullPromptForAI = filePayloadText + (userTextInput || "Please review attached file(s) or video.");
+                userDisplayMessage = `<details class="file-collapse"><summary>📁 Attached Files/Videos: ${fileSummaryText} (Click to toggle content)</summary><pre>${stagedFiles.map(f => `--- ${f.name} ---\n` + (f.rawContent || f.content)).join('\n\n')}</pre></details>\n\n` + (userTextInput || "");
+                
+                stagedFiles = [];
+                renderFilePreviews();
+            } else {
+                fullPromptForAI = userTextInput;
+                userDisplayMessage = userTextInput;
+            }
+
+            chatInput.value = '';
+            dispatchAIPrompt(fullPromptForAI, userDisplayMessage);
+        }
+
+        async function dispatchAIPrompt(promptText, displayUserText) {
+            const currentTab = getActiveTab();
+            if (!currentTab) return;
+
+            if (currentTab.messages.length <= 1 && currentTab.title === 'New Session') {
+                currentTab.title = chatInput.value.slice(0, 20) || 'Media Session';
+                renderTabs();
+            }
+
+            totalTokenCount += Math.round(promptText.length / 4);
+            telemetryTokens.textContent = totalTokenCount;
+
+            currentTab.messages.push({ type: 'user', content: displayUserText });
+            renderActiveTerminal();
+            saveSessions();
+
+            showLoadingIndicator();
+
+            if (preferences.provider === 'puter') {
+                try {
+                    clusterState.textContent = `CLUSTER: PUTER (${preferences.puterModel}) ACTIVE`;
+                    const chatResp = await puter.ai.chat(promptText, { model: preferences.puterModel, stream: true });
+                    removeLoadingIndicator();
+                    
+                    let fullAiText = "";
+                    let fullReasoning = "";
+                    const aiMsgIdx = currentTab.messages.push({ type: 'ai', thought: "", content: "" }) - 1;
+
+                    for await (const part of chatResp) {
+                        if (part?.reasoning) fullReasoning += part.reasoning;
+                        if (part?.text) fullAiText += part.text;
+
+                        currentTab.messages[aiMsgIdx].thought = fullReasoning;
+                        currentTab.messages[aiMsgIdx].content = fullAiText;
+                        renderActiveTerminal();
+                    }
+
+                    totalTokenCount += Math.round(fullAiText.length / 4);
+                    telemetryTokens.textContent = totalTokenCount;
+                    clusterState.textContent = 'CLUSTER: ACTIVE';
+                    saveSessions();
+                } catch (err) {
+                    removeLoadingIndicator();
+                    logSystemMessage("Puter Error: " + (err.message || 'Failed to query Puter AI'));
+                    clusterState.textContent = 'CLUSTER: ERROR';
+                }
+            } else {
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    socket.send(JSON.stringify({ prompt: promptText }));
+                } else {
+                    fetch('/api/ask', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt: promptText })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        removeLoadingIndicator();
+                        if (data.isAdmin) {
+                            toggleAdminPanel(true);
+                            if (data.visitors) updateVisitorTable(data.visitors);
+                            if (data.neurons) {
+                                neuronStatus.textContent = `${data.neurons.used} / ${data.neurons.total} Neurons Used (Resets in 24h)`;
+                            }
+                        }
+                        if (data.success) {
+                            totalTokenCount += Math.round(data.result.length / 4);
+                            telemetryTokens.textContent = totalTokenCount;
+                            renderFormattedMessage(data.result, 'ai-msg', data.thought || data.reasoning || '');
+                            if (data.neurons) {
+                                neuronStatus.textContent = `${data.neurons.used} / ${data.neurons.total} Neurons Used (Resets in 24h)`;
+                            }
+                        } else {
+                            logSystemMessage("Cluster Error: " + (data.error || 'Unknown error'));
+                        }
+                    })
+                    .catch(() => {
+                        removeLoadingIndicator();
+                        logSystemMessage("System Error: Failed to reach backend cluster node.");
+                    });
+                }
+            }
+        }
+
+        loadPreferences();
+        if (!loadSavedSessions()) {
+            createNewTab('Main Cluster Session');
+        }
+        connectWebSocket();
+    </script>
 </body>
 </html>
