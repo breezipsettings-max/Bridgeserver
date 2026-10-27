@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CLUSTER SYNC ENGINE AI TERMINAL</title>
+    <!-- Custom Icon / Favicon Integration -->
+    <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/breezipsettings-max/Bridgeserver/main/src/assets/Icon.png">
+    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/breezipsettings-max/Bridgeserver/main/src/assets/Icon.png">
     <!-- Marked JS for clean markdown parsing -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <!-- Puter.js SDK for Puter AI option -->
@@ -599,6 +602,7 @@
                 
                 <div class="popup-section-title">AI Provider Engine</div>
                 <select id="ai-provider-select" class="model-select" onchange="savePreferences()">
+                    <option value="requesty">REQUESTY AI (Nemotron-3.5)</option>
                     <option value="cloudflare">CLOUDFLARE AI (Rotating Profiles)</option>
                     <option value="puter">PUTER AI (Multi-Model)</option>
                 </select>
@@ -667,7 +671,7 @@
 
             <div class="header-box">
                 <div>
-                    <strong>Architecture Active:</strong> <span id="arch-provider">Cloudflare AI Cluster</span> active | 
+                    <strong>Architecture Active:</strong> <span id="arch-provider">Requesty AI (Nemotron-3.5)</span> active | 
                     <span>Vector & Embedding Distribution</span> synced
                 </div>
                 <div id="cluster-state">CLUSTER: ACTIVE</div>
@@ -775,7 +779,7 @@
             persistence: true,
             autoscroll: true,
             telemetry: true,
-            provider: 'cloudflare',
+            provider: 'requesty',
             puterModel: 'gpt-5.6-luna'
         };
 
@@ -839,7 +843,13 @@
 
         function updateTelemetryDisplay() {
             telemetryReadout.style.display = preferences.telemetry ? 'flex' : 'none';
-            archProviderLabel.textContent = preferences.provider === 'cloudflare' ? 'Cloudflare AI Cluster' : `Puter AI (${preferences.puterModel})`;
+            if (preferences.provider === 'requesty') {
+                archProviderLabel.textContent = 'Requesty AI (Nemotron-3.5)';
+            } else if (preferences.provider === 'cloudflare') {
+                archProviderLabel.textContent = 'Cloudflare AI Cluster';
+            } else {
+                archProviderLabel.textContent = `Puter AI (${preferences.puterModel})`;
+            }
         }
 
         async function checkSiteVersion() {
@@ -1254,7 +1264,7 @@
                 telemetryPing.textContent = pingMs + 'ms';
                 logSystemMessage('System: Cluster node link established successfully.');
                 statusIndicator.classList.add('online');
-                clusterState.textContent = 'CLUSTER: ONLINE (1-10 ROTATION)';
+                clusterState.textContent = 'CLUSTER: ONLINE (REQUESTY ACTIVE)';
                 if (isAdminUnlocked) toggleAdminPanel(true);
             };
 
