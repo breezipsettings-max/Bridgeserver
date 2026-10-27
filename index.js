@@ -4,6 +4,7 @@ import { WebSocketServer } from 'ws';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
+import OpenAI from "openai";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -69,7 +70,7 @@ function getAccounts() {
   return accounts;
 }
 
-// Safely sanitize and truncate prompts to prevent Cloudflare AI 60,000 token context limit crashes
+// Safely sanitize and truncate prompts to prevent AI context limit crashes
 function sanitizeAndTruncatePrompt(prompt) {
   const MAX_CHAR_LIMIT = 16000; // ~4000 tokens safety cap
   if (prompt.length > MAX_CHAR_LIMIT) {
@@ -77,6 +78,27 @@ function sanitizeAndTruncatePrompt(prompt) {
     return prompt.substring(0, MAX_CHAR_LIMIT) + "\n\n[SYSTEM NOTICE: Payload truncated to prevent context window overflow]";
   }
   return prompt;
+}
+
+// Requesty Router client using NEMOTRON_35_KEY
+const requestyClient = new OpenAI({
+  apiKey: process.env.NEMOTRON_35_KEY,
+  baseURL: "https://router.requesty.ai/v1",
+});
+
+async function callRequestyAI(prompt) {
+  const safePrompt = sanitizeAndTruncatePrompt(prompt);
+  console.log(`[Requesty Dispatch] Routing request through Nemotron model...`);
+  
+  const completion = await requestyClient.chat.completions.create({
+    model: "nvidia/nemotron-3.5-lightning-30b-a3b",
+    messages: [
+      { role: "user", content: safePrompt },
+    ],
+    max_tokens: 300,
+  });
+
+  return completion.choices[0].message.content;
 }
 
 // Multi-account rotating Cloudflare AI call with 24-hour cooldown memory & failover
@@ -149,7 +171,6 @@ async function callCloudflare(prompt) {
 
       if (!data.success) {
         const errorMsg = JSON.stringify(data.errors);
-        // Do not put account on 24h cooldown for context window errors
         if (errorMsg.includes('5021') || errorMsg.includes('context window limit')) {
            throw new Error("Payload error: Input text/attachment exceeds model context limit.");
         }
@@ -252,7 +273,14 @@ app.post('/api/ask', async (req, res) => {
   }
 
   try {
-    const result = await callCloudflare(prompt);
+    // Tries Requesty Nemotron first, falls back to Cloudflare cluster if needed
+    let result;
+    try {
+      result = await callRequestyAI(prompt);
+    } catch (requestyErr) {
+      console.warn(`[Requesty Fallback] Nemotron call failed, falling back to Cloudflare cluster: ${requestyErr.message}`);
+      result = await callCloudflare(prompt);
+    }
     res.json({ success: true, result, neurons: neuronAllocation });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -347,7 +375,12 @@ wss.on('connection', (ws) => {
                 return;
             }
 
-            const result = await callCloudflare(prompt);
+            let result;
+            try {
+                result = await callRequestyAI(prompt);
+            } catch (requestyErr) {
+                result = await callCloudflare(prompt);
+            }
             ws.send(JSON.stringify({ success: true, result, neurons: neuronAllocation }));
         } catch (error) {
             ws.send(JSON.stringify({ success: false, error: error.message }));
