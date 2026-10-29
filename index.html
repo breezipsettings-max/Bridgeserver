@@ -9,6 +9,8 @@
     <link rel="apple-touch-icon" href="/assets/favIcon.ico">
     <!-- Marked JS for clean markdown parsing -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- JSZip for ZIP archive extraction support -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <!-- Puter.js SDK for Puter AI option -->
     <script src="https://js.puter.com/v2/"></script>
     <!-- Requesty Router Endpoint -->
@@ -656,7 +658,7 @@
             <div id="drop-overlay">
                 <div class="drop-circle-box">
                     <h3>[ DROP FILES HERE ]</h3>
-                    <p>Release to scan and queue files or videos for AI transmission</p>
+                    <p>Release to scan and queue files, videos, or ZIP archives for AI transmission</p>
                 </div>
             </div>
 
@@ -684,8 +686,8 @@
             <div class="input-wrapper">
                 <div id="file-preview-container"></div>
                 <div class="input-cluster">
-                    <input type="file" id="file-selector" multiple accept="image/*,video/*,.txt,.md,.js,.json,.html,.css,.py" onchange="handleFileSelect(event)">
-                    <button class="plus-btn" onclick="document.getElementById('file-selector').click()" title="Upload Files or Video">+</button>
+                    <input type="file" id="file-selector" multiple accept="image/*,video/*,.txt,.md,.js,.json,.html,.css,.py,.zip" onchange="handleFileSelect(event)">
+                    <button class="plus-btn" onclick="document.getElementById('file-selector').click()" title="Upload Files, Video or ZIP">+</button>
                     <input type="text" id="chat-input" placeholder="Type prompt or code request..." onkeypress="handleKey(event)">
                     <button class="send-btn" onclick="sendMessage()">TRANSMIT</button>
                 </div>
@@ -1116,7 +1118,9 @@
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
 
-                if (file.type.startsWith('video/')) {
+                if (file.name.endsWith('.zip') || file.type === 'application/zip' || file.type === 'application/x-zip-compressed') {
+                    await processZipFile(file);
+                } else if (file.type.startsWith('video/')) {
                     await processVideoFile(file);
                 } else if (file.type.startsWith('image/')) {
                     const compressedDataUrl = await compressImageFile(file);
@@ -1141,6 +1145,33 @@
                     };
                     reader.readAsText(file);
                 }
+            }
+        }
+
+        async function processZipFile(file) {
+            logSystemMessage(`System: Unpacking ZIP archive [${file.name}]...`);
+            try {
+                const zip = new JSZip();
+                const zipContent = await zip.loadAsync(file);
+                let extractedCount = 0;
+
+                for (let filename of Object.keys(zipContent.files)) {
+                    const zipEntry = zipContent.files[filename];
+                    if (!zipEntry.dir) {
+                        const fileData = await zipEntry.async('text');
+                        stagedFiles.push({
+                            name: `${file.name} -> ${filename}`,
+                            size: (fileData.length / 1024).toFixed(1) + ' KB',
+                            content: fileData,
+                            type: 'text'
+                        });
+                        extractedCount++;
+                    }
+                }
+                logSystemMessage(`System: Successfully extracted ${extractedCount} file(s) from [${file.name}].`);
+                renderFilePreviews();
+            } catch (err) {
+                logSystemMessage(`System Error: Failed to extract ZIP archive [${file.name}].`);
             }
         }
 
